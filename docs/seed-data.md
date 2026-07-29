@@ -12,7 +12,7 @@ below for v2 reference only.
 
 ## Habits
 
-### July 2026 order — 13 habits
+### July 2026 order — 12 habits
 
 1. Wakeup at 6
 2. Meditation
@@ -22,18 +22,23 @@ below for v2 reference only.
 6. Post Content
 7. Sales Tracker
 8. Customer Checked
-9. Payout
-10. Inventory stock
-11. Video
-12. Finance Log
-13. Sleep at 11
+9. Inventory stock
+10. Video
+11. Finance Log
+12. Sleep at 11
+
+> **`Payout` removed 2026-07-29.** It was entered into the Habits tab by accident —
+> it is not a habit. Do not carry it into the app. (The *task* "Payout Data to alfie
+> chettan" is unrelated and stays.)
+>
+> With Payout gone, July is 12 habits, which reconciles the design doc's "7/12" in §1.
 
 ### August 2026 order — 11 habits
 
 Meditation · Excersice (walk) · Wakeup at 6 · Read Book · Sleep at 11 · Post Content ·
 Sales Tracker · Customer Checked · Inventory stock · Bird Food · Video
 
-**Dropped in August:** Payout, Finance Log.
+**Dropped in August:** Finance Log. (Payout too, but it was never a habit — see above.)
 
 > This is exactly the problem design doc §6.2 names: two months, two orders, two
 > counts, month-over-month comparison meaningless. The app fixes it with one
@@ -51,12 +56,11 @@ Sales Tracker · Customer Checked · Inventory stock · Bird Food · Video
 | Post Content | · | · | · | · | · |
 | Sales Tracker | ■ | ■ | · | · | · |
 | Customer Checked | ■ | ■ | · | · | · |
-| Payout | (blank) | (blank) | · | · | · |
 | Inventory stock | ■ | ■ | · | · | · |
 | Video | · | · | · | · | · |
 | Finance Log | ■ | · | · | · | · |
 | Sleep at 11 | · | · | · | · | · |
-| **Day score** | **7/13** | **6/13** | **2/13** | 0 | 0 |
+| **Day score** | **7/12** | **6/12** | **2/12** | 0 | 0 |
 
 All of August 2026 is `False` — untouched.
 
