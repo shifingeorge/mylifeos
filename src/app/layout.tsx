@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { DM_Mono, Syne } from "next/font/google";
+import { ServiceWorkerRegistrar } from "@/components/ServiceWorkerRegistrar";
 import "./globals.css";
 
 // Self-hosted by next/font — no external request, so they render offline.
@@ -22,6 +23,10 @@ export const metadata: Metadata = {
   // A personal tool holding shop data does not belong in a search index.
   robots: { index: false, follow: false },
   appleWebApp: { capable: true, statusBarStyle: "black-translucent" },
+  // Preview and production are both installable on the same phone. The
+  // different name and icon are what stop a week of ticks going into the
+  // wrong database.
+  manifest: isDev ? "/manifest.dev.json" : "/manifest.json",
 };
 
 export const viewport: Viewport = {
@@ -41,7 +46,10 @@ export default function RootLayout({
       lang="en"
       className={`${dmMono.variable} ${syne.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <ServiceWorkerRegistrar />
+      </body>
     </html>
   );
 }
