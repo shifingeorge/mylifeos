@@ -12,12 +12,15 @@ import {
 import type { Category, CellState, Habit, HabitEntry } from "@/lib/types";
 import { HabitGrid } from "@/components/HabitGrid";
 import { DayHeader } from "@/components/DayHeader";
+import { SyncFooter } from "@/components/SyncFooter";
+import { lastSyncAt, startSyncLoop } from "@/lib/sync/engine";
 
 export default function HabitsPage() {
   const [today] = useState(() => todayIST());
   const [categories, setCategories] = useState<Category[]>([]);
   const [habits, setHabits] = useState<Habit[]>([]);
   const [entries, setEntries] = useState<HabitEntry[]>([]);
+  const [lastSync, setLastSync] = useState<string | undefined>();
 
   const dates = useMemo(() => rollingWindow(today), [today]);
 
@@ -29,7 +32,17 @@ export default function HabitsPage() {
       setCategories(await db.categories.toArray());
       setHabits(await db.habits.toArray());
       setEntries(await entriesForDates(dates));
+      setLastSync(await lastSyncAt());
     })();
+  }, [dates]);
+
+  useEffect(() => {
+    return startSyncLoop(() => {
+      void (async () => {
+        setEntries(await entriesForDates(dates));
+        setLastSync(await lastSyncAt());
+      })();
+    });
   }, [dates]);
 
   const handleTick = useCallback(
@@ -66,6 +79,7 @@ export default function HabitsPage() {
         today={today}
         onTick={handleTick}
       />
+      <SyncFooter lastSync={lastSync} />
     </main>
   );
 }
