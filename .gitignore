@@ -1,0 +1,40 @@
+# Source-of-truth spreadsheet — local only, never pushed
+*.xlsx
+*.xls
+*.csv
+
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Vercel
+.vercel
+
+# Env
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+
+# Test artifacts
+coverage/
+playwright-report/
+test-results/
