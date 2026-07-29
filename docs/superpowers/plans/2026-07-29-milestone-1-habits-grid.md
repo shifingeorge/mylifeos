@@ -69,8 +69,8 @@ src/
     DayHeader.tsx         date + score, Syne
     PinPad.tsx            numeric keypad
     SyncFooter.tsx        LAST_SYNC line
-  styles/
     globals.css           two grounds as CSS custom properties
+  proxy.ts                auth guard (Next 16's rename of middleware.ts)
 tests/
   unit/                   Vitest — date, state, score, merge, rate-limit
   e2e/                    Playwright — one spine test
@@ -1787,15 +1787,18 @@ export default function UnlockPage() {
 }
 ```
 
-- [ ] **Step 9: Guard the app with middleware**
+- [ ] **Step 9: Guard the app with a proxy**
 
-Create `src/middleware.ts`:
+**Next 16 renamed `middleware.ts` to `proxy.ts`.** The file exports a function named
+`proxy` (or a default export), and lives at `src/proxy.ts` — the same level as `app`.
+
+Create `src/proxy.ts`:
 
 ```typescript
 import { NextResponse, type NextRequest } from 'next/server'
 import { COOKIE_NAME, verifyToken } from '@/lib/auth/pin'
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   if (await verifyToken(req.cookies.get(COOKIE_NAME)?.value)) {
     return NextResponse.next()
   }
@@ -1808,6 +1811,9 @@ export const config = {
 ```
 
 `/api/auth` is deliberately absent from the matcher — it is the route that issues the token.
+
+The matcher is also what keeps the guard off `_next/static` and `public/`. Without it,
+proxy runs on every request and the redirect would block the app's own CSS and JS.
 
 - [ ] **Step 10: Verify by hand**
 
