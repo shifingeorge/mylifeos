@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+/* Paper (light) — design doc §5.1 */
+:root {
+  --ground: #f5f2ec;
+  --type: #0a0a0a;
+  --type-muted: #6b6b6b;
+  --rule: #d8d3c9;
+  --accent: #a8d800;
+  --alert: #c1121f;
+  /* A miss is history, not urgency. Deliberately NOT --alert. Spec §9 no. 4. */
+  --miss: #a89f92;
+}
+
+/* Terminal (dark) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground: #0a0a0a;
+    --type: #f5f2ec;
+    --type-muted: #6b6b6b;
+    --rule: #1e1e1e;
+    --accent: #c8ff00;
+    --alert: #ff4d4d;
+    --miss: #4a4a4a;
+  }
+}
+
+@theme inline {
+  --color-ground: var(--ground);
+  --color-type: var(--type);
+  --color-muted: var(--type-muted);
+  --color-rule: var(--rule);
+  --color-accent: var(--accent);
+  --color-alert: var(--alert);
+  --color-miss: var(--miss);
+  --font-mono: var(--font-dm-mono);
+  --font-display: var(--font-syne);
+}
+
+body {
+  background: var(--ground);
+  color: var(--type);
+  font-family: var(--font-dm-mono), ui-monospace, monospace;
+  /* A ledger is a tool, not a document. Nothing here should rubber-band. */
+  overscroll-behavior: none;
+}
+
+/* Every tick target is the full cell, never the glyph. Design doc §5.4. */
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
