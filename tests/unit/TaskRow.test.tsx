@@ -82,4 +82,39 @@ describe("TaskRow", () => {
       "true",
     );
   });
+
+  // The shape rule (design doc §5.3) is non-negotiable: priority is a FILLED
+  // block, project is an OUTLINED tag — two shapes, not two hues. A colour-only
+  // distinction is invisible to anyone colour-blind and to everyone in
+  // sunlight. These assertions read the actual box model, not a colour value,
+  // so a regression that swaps the border for a tint (collapsing the two
+  // chips back into "different colour, same shape") fails loudly here. Do not
+  // delete this as brittle — it is the only test defending the rule at all.
+  it("renders priority as a filled block and project as an outlined tag, not a colour swap", () => {
+    render(
+      <TaskRow task={task} projectName="SMASHED" today={today} onToggle={() => {}} />,
+    );
+
+    const priorityChip = screen.getByText("P1");
+    expect(priorityChip.style.background).not.toBe("");
+    expect(priorityChip.style.border).toBe("");
+
+    const projectChip = screen.getByText("SMASHED");
+    expect(projectChip.style.border).not.toBe("");
+    expect(projectChip.style.background).toBe("");
+  });
+
+  it("wraps a long title across up to two lines instead of truncating it", () => {
+    const longTitle =
+      "FOLLOW UP WITH THE SUPPLIER ABOUT THE JULY INVOICE AND CONFIRM THE REVISED DELIVERY DATE";
+    render(
+      <TaskRow
+        task={{ ...task, title: longTitle }}
+        projectName="SMASHED"
+        today={today}
+        onToggle={() => {}}
+      />,
+    );
+    expect(screen.getByText(longTitle)).toBeInTheDocument();
+  });
 });

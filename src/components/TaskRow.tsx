@@ -42,7 +42,7 @@ export function TaskRow({
 
       <span className="min-w-0">
         <span
-          className="block truncate text-[12px] tracking-[0.04em]"
+          className="block line-clamp-2 break-words text-[12px] tracking-[0.04em]"
           style={{ color: task.done ? "var(--type-muted)" : "var(--type)" }}
         >
           {task.title}
