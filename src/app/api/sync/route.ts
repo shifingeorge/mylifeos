@@ -28,7 +28,6 @@ async function ensureSeeded(db: ReturnType<typeof dbServer>) {
         id: c.id,
         name: c.name,
         sortOrder: c.sortOrder,
-        updatedAt: new Date(c.updatedAt),
       })),
     )
     .onConflictDoNothing({ target: categories.id });
