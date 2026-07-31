@@ -52,17 +52,30 @@ there, unescaped.
 
 ## Checking a deployment
 
-`GET /api/health` reports whether the instance is configured, without
-requiring the PIN — it has to answer when auth is the thing that is broken:
+`GET /api/health` reports whether the instance is configured *and* whether
+its database matches the code, without requiring the PIN — it has to answer
+when auth is the thing that is broken:
 
 ```sh
 curl -s https://<deployment>/api/health
-{"ok":true,"env":"dev","missing":[],"problems":[],"dbHost":"ep-flat-unit-…"}
+{"ok":true,"env":"dev","missing":[],"problems":[],"dbHost":"ep-flat-unit-…","schema":"ok"}
 ```
 
-`200` when configured, `503` when not. `dbHost` confirms the environment is
-pointed at the right Neon branch, which is the mistake with the worst
-consequences. No secret value is ever included in the response.
+`200` when everything checks out, `503` otherwise. `dbHost` confirms the
+environment is pointed at the right Neon branch, which is the mistake with
+the worst consequences.
+
+`schema` is a live query against `tasks` and `categories.updated_at`. It
+reads `schema behind code — run drizzle-kit migrate` when the deploy ran
+ahead of the migrations below — the failure that otherwise shows up nowhere,
+because `/api/sync` 500s and the sync loop swallows it by design:
+
+```sh
+{"ok":false,…,"schema":"schema behind code — run drizzle-kit migrate"}
+```
+
+Any other database failure reads `query failed (<code>)`. No secret value,
+connection string or raw driver message is ever included in the response.
 
 ## Deployment protection
 
