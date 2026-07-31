@@ -7,6 +7,7 @@ import { db, entriesForDates, seedIfEmpty } from "@/lib/db/local";
 import type { Habit, HabitEntry } from "@/lib/types";
 import { AppHeader } from "@/components/AppHeader";
 import { HomeCard } from "@/components/HomeCard";
+import { useSynced } from "@/lib/use-synced";
 
 /**
  * Where do I stand today, in one screen. The habits-only redirect this
@@ -27,6 +28,16 @@ export default function HomePage() {
       setEntries(await entriesForDates(dates));
     })();
   }, [dates]);
+
+  // A sync elsewhere in the app (or the loop's own timer) can bring in
+  // habits or entries this card summarises — re-read so the number on
+  // screen isn't stale the whole time the user has Home open.
+  useSynced(() => {
+    void (async () => {
+      setHabits(await db.habits.toArray());
+      setEntries(await entriesForDates(dates));
+    })();
+  });
 
   const score = dayScore(habits, entries, today);
 

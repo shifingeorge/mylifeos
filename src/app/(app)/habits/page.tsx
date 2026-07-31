@@ -14,7 +14,8 @@ import { HabitGrid } from "@/components/HabitGrid";
 import { AppHeader } from "@/components/AppHeader";
 import { DayHeaderScore } from "@/components/DayHeader";
 import { SyncFooter } from "@/components/SyncFooter";
-import { lastSyncAt, startSyncLoop } from "@/lib/sync/engine";
+import { lastSyncAt } from "@/lib/sync/engine";
+import { useSynced } from "@/lib/use-synced";
 
 export default function HabitsPage() {
   const [today] = useState(() => todayIST());
@@ -37,14 +38,12 @@ export default function HabitsPage() {
     })();
   }, [dates]);
 
-  useEffect(() => {
-    return startSyncLoop(() => {
-      void (async () => {
-        setEntries(await entriesForDates(dates));
-        setLastSync(await lastSyncAt());
-      })();
-    });
-  }, [dates]);
+  useSynced(() => {
+    void (async () => {
+      setEntries(await entriesForDates(dates));
+      setLastSync(await lastSyncAt());
+    })();
+  });
 
   const handleTick = useCallback(
     async (habitId: string, date: string, next: CellState) => {
