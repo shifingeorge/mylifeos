@@ -2,72 +2,87 @@ import { NextResponse } from "next/server";
 import { gt, sql } from "drizzle-orm";
 import { dbServer } from "@/lib/db/client";
 import { categories, habits, habitEntries } from "@/lib/db/schema";
-import { SEED_CATEGORIES, SEED_HABITS } from "@/lib/db/seed";
-import type { HabitEntry } from "@/lib/types";
+import type { Category, Habit, HabitEntry } from "@/lib/types";
 
 export const runtime = "nodejs";
 
-interface PushRow {
-  habitId: string;
-  date: string;
-  state: string;
-  checkedAt: string;
+interface Envelope {
+  categories: Category[];
+  habits: Habit[];
+  entries: HabitEntry[];
 }
 
 /**
- * habit_entries references habits, so the first push from a fresh client
- * would violate the foreign key against an empty server. Seeding from the
- * same module the client seeds from keeps both sides on one canonical list,
- * and the upsert makes it idempotent — it costs one no-op statement per sync.
+ * There is deliberately no server-side seeding here any more. Once habits are
+ * editable from Settings, an upsert-from-seed on every request would resurrect
+ * a habit the moment after it was archived. A fresh device seeds itself and
+ * the first sync uploads it.
  */
-async function ensureSeeded(db: ReturnType<typeof dbServer>) {
-  await db
-    .insert(categories)
-    .values(
-      SEED_CATEGORIES.map((c) => ({
-        id: c.id,
-        name: c.name,
-        sortOrder: c.sortOrder,
-      })),
-    )
-    .onConflictDoNothing({ target: categories.id });
-
-  await db
-    .insert(habits)
-    .values(
-      SEED_HABITS.map((h) => ({
-        id: h.id,
-        name: h.name,
-        tier: h.tier,
-        categoryId: h.categoryId,
-        sortOrder: h.sortOrder,
-        active: h.active,
-      })),
-    )
-    .onConflictDoNothing({ target: habits.id });
-}
-
 export async function POST(req: Request) {
   const db = dbServer();
-  const { since, rows } = (await req.json()) as {
-    since: string | null;
-    rows: PushRow[];
-  };
-
+  const body = (await req.json()) as { since: string | null } & Partial<Envelope>;
+  const since = body.since ?? null;
   const serverTime = new Date();
 
-  await ensureSeeded(db);
+  // Parents before children. This is what lets a brand-new category and a
+  // habit inside it arrive in one request without tripping the foreign key.
+  if (body.categories?.length) {
+    await db
+      .insert(categories)
+      .values(
+        body.categories.map((c) => ({
+          id: c.id,
+          name: c.name,
+          sortOrder: c.sortOrder,
+          updatedAt: serverTime,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: categories.id,
+        set: {
+          name: sql`excluded.name`,
+          sortOrder: sql`excluded.sort_order`,
+          updatedAt: sql`excluded.updated_at`,
+        },
+      });
+  }
 
-  // Push. The server stamps updated_at — a skewed phone clock must not win.
-  if (Array.isArray(rows) && rows.length > 0) {
+  if (body.habits?.length) {
+    await db
+      .insert(habits)
+      .values(
+        body.habits.map((h) => ({
+          id: h.id,
+          name: h.name,
+          tier: h.tier,
+          categoryId: h.categoryId,
+          sortOrder: h.sortOrder,
+          active: h.active,
+          updatedAt: serverTime,
+        })),
+      )
+      .onConflictDoUpdate({
+        target: habits.id,
+        set: {
+          name: sql`excluded.name`,
+          tier: sql`excluded.tier`,
+          categoryId: sql`excluded.category_id`,
+          sortOrder: sql`excluded.sort_order`,
+          active: sql`excluded.active`,
+          updatedAt: sql`excluded.updated_at`,
+        },
+      });
+  }
+
+  if (body.entries?.length) {
     await db
       .insert(habitEntries)
       .values(
-        rows.map((r) => ({
-          habitId: r.habitId,
-          date: r.date,
-          state: r.state,
-          checkedAt: new Date(r.checkedAt),
+        body.entries.map((e) => ({
+          habitId: e.habitId,
+          date: e.date,
+          state: e.state,
+          checkedAt: new Date(e.checkedAt),
           updatedAt: serverTime,
         })),
       )
@@ -81,24 +96,43 @@ export async function POST(req: Request) {
       });
   }
 
-  // Pull everything changed since the client's cursor.
-  const changed = since
-    ? await db
-        .select()
-        .from(habitEntries)
-        .where(gt(habitEntries.updatedAt, new Date(since)))
-    : await db.select().from(habitEntries);
+  const cursor = since ? new Date(since) : null;
 
-  const payload: HabitEntry[] = changed.map((r) => ({
-    habitId: r.habitId,
-    date: r.date,
-    state: r.state as HabitEntry["state"],
-    checkedAt: r.checkedAt.toISOString(),
-    updatedAt: r.updatedAt.toISOString(),
-  }));
+  const [catRows, habitRows, entryRows] = await Promise.all([
+    cursor
+      ? db.select().from(categories).where(gt(categories.updatedAt, cursor))
+      : db.select().from(categories),
+    cursor
+      ? db.select().from(habits).where(gt(habits.updatedAt, cursor))
+      : db.select().from(habits),
+    cursor
+      ? db.select().from(habitEntries).where(gt(habitEntries.updatedAt, cursor))
+      : db.select().from(habitEntries),
+  ]);
 
   return NextResponse.json({
     serverTime: serverTime.toISOString(),
-    rows: payload,
+    categories: catRows.map((c) => ({
+      id: c.id,
+      name: c.name,
+      sortOrder: c.sortOrder,
+      updatedAt: c.updatedAt.toISOString(),
+    })),
+    habits: habitRows.map((h) => ({
+      id: h.id,
+      name: h.name,
+      tier: h.tier as Habit["tier"],
+      categoryId: h.categoryId as string,
+      sortOrder: h.sortOrder,
+      active: h.active,
+      updatedAt: h.updatedAt.toISOString(),
+    })),
+    entries: entryRows.map((e) => ({
+      habitId: e.habitId,
+      date: e.date,
+      state: e.state as HabitEntry["state"],
+      checkedAt: e.checkedAt.toISOString(),
+      updatedAt: e.updatedAt.toISOString(),
+    })),
   });
 }
