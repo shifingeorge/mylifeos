@@ -17,6 +17,11 @@ export const categories = pgTable("categories", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   sortOrder: integer("sort_order").notNull(),
+  // Categories are editable from Settings now, so they sync like everything
+  // else rather than being seeded server-side.
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const habits = pgTable("habits", {

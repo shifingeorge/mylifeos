@@ -6,6 +6,7 @@ const cat = (id: string, name: string, sortOrder: number): Category => ({
   id,
   name,
   sortOrder,
+  updatedAt: "2026-07-01T00:00:00Z",
 });
 
 const habit = (

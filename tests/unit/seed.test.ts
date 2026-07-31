@@ -75,4 +75,18 @@ describe("seed data", () => {
       expect(used.has(c.id)).toBe(true);
     }
   });
+
+  it("stamps every seed category with an updatedAt", () => {
+    for (const c of SEED_CATEGORIES) {
+      expect(c.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    }
+  });
+
+  it("uses one fixed timestamp across all seed rows", () => {
+    const stamps = new Set([
+      ...SEED_CATEGORIES.map((c) => c.updatedAt),
+      ...SEED_HABITS.map((h) => h.updatedAt),
+    ]);
+    expect(stamps.size).toBe(1);
+  });
 });

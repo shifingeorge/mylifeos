@@ -23,7 +23,14 @@ interface PushRow {
 async function ensureSeeded(db: ReturnType<typeof dbServer>) {
   await db
     .insert(categories)
-    .values(SEED_CATEGORIES)
+    .values(
+      SEED_CATEGORIES.map((c) => ({
+        id: c.id,
+        name: c.name,
+        sortOrder: c.sortOrder,
+        updatedAt: new Date(c.updatedAt),
+      })),
+    )
     .onConflictDoNothing({ target: categories.id });
 
   await db

@@ -7,11 +7,11 @@ const T = "2026-07-29T00:00:00.000Z";
  * then output — and is the single canonical order applied to every month.
  */
 export const SEED_CATEGORIES: Category[] = [
-  { id: "health", name: "HEALTH", sortOrder: 1 },
-  { id: "mind", name: "MIND", sortOrder: 2 },
-  { id: "business", name: "BUSINESS", sortOrder: 3 },
-  { id: "output", name: "OUTPUT", sortOrder: 4 },
-  { id: "home", name: "HOME", sortOrder: 5 },
+  { id: "health", name: "HEALTH", sortOrder: 1, updatedAt: T },
+  { id: "mind", name: "MIND", sortOrder: 2, updatedAt: T },
+  { id: "business", name: "BUSINESS", sortOrder: 3, updatedAt: T },
+  { id: "output", name: "OUTPUT", sortOrder: 4, updatedAt: T },
+  { id: "home", name: "HOME", sortOrder: 5, updatedAt: T },
 ];
 
 const h = (

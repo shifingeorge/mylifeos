@@ -14,6 +14,9 @@ export interface Category {
   id: string;
   name: string;
   sortOrder: number;
+  updatedAt: string;
+  /** 1 = pending push. Dexie cannot index booleans, so this is not a bool. */
+  dirty?: 1 | 0;
 }
 
 export interface Habit {
@@ -25,6 +28,7 @@ export interface Habit {
   /** Soft delete. Dropping a habit must not punch holes in past months. */
   active: boolean;
   updatedAt: string;
+  dirty?: 1 | 0;
 }
 
 export interface HabitEntry {
