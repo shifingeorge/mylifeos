@@ -22,6 +22,34 @@ function strip<T extends { dirty?: 1 | 0 }>(rows: T[]): Omit<T, "dirty">[] {
   return rows.map(({ dirty: _dirty, ...rest }) => rest);
 }
 
+type Local = { updatedAt: string; dirty?: 1 | 0 };
+
+/**
+ * True when the row sitting in Dexie right now is carrying an edit this
+ * request did not send, and so must not be written over.
+ *
+ * Two cases, one test. The row is dirty and either it was never in the push
+ * at all (`pushed` undefined — created after the snapshot was taken), or it
+ * was pushed and has since moved (`updatedAt` differs — the user edited it
+ * while the fetch was in flight). Either way the server has never seen the
+ * value on screen, so overwriting it would lose the edit AND clear `dirty`,
+ * which is the difference between "syncs a moment later" and "gone".
+ *
+ * The row-identity check this replaces only caught the case where the LOCAL
+ * row won the merge. It could not catch the common one: the server stamps
+ * every pushed row with its own time and the pull in the same request hands
+ * it straight back, so the echo carries a later `updatedAt` than the tap
+ * that produced it whenever the phone's clock trails the server's — the
+ * echo wins, and the merge loop was writing it over the correction.
+ */
+function hasUnsentEdit(local: Local | undefined, pushed: Local | undefined) {
+  return local?.dirty === 1 && local.updatedAt !== pushed?.updatedAt;
+}
+
+function byKey<T>(rows: T[], key: (row: T) => string): Map<string, T> {
+  return new Map(rows.map((r) => [key(r), r]));
+}
+
 export async function sync(): Promise<{ pushed: number; pulled: number }> {
   const [cats, habs, ents, projs, tsks] = await Promise.all([
     dirtyCategories(),
@@ -60,59 +88,72 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
     "rw",
     [db.categories, db.habits, db.habitEntries, db.projects, db.tasks, db.meta],
     async () => {
+      // Each merge loop writes the winner of last-write-wins back to Dexie
+      // and clears `dirty`, because a row the server just handed back is by
+      // definition on the server. The one exception is `hasUnsentEdit`: a
+      // row holding a local edit this request never carried is left exactly
+      // as it is, dirty flag included, for the next sync to push.
       if (pulled.categories.length > 0) {
         const local = await db.categories.toArray();
-        const before = new Map(local.map((r) => [r.id, r]));
+        const before = byKey(local, idKey);
+        const sent = byKey(cats, idKey);
         for (const row of mergeRows(local, pulled.categories, idKey)) {
-          // Same reference means the local row won the merge — leave it
-          // exactly as it is, dirty flag included. Rewriting it would clear
-          // a pending edit that has not been pushed yet.
-          if (before.get(row.id) === row) continue;
+          if (hasUnsentEdit(before.get(row.id), sent.get(row.id))) continue;
           await db.categories.put({ ...row, dirty: 0 });
         }
       }
 
       if (pulled.habits.length > 0) {
         const local = await db.habits.toArray();
-        const before = new Map(local.map((r) => [r.id, r]));
+        const before = byKey(local, idKey);
+        const sent = byKey(habs, idKey);
         for (const row of mergeRows(local, pulled.habits, idKey)) {
-          if (before.get(row.id) === row) continue;
+          if (hasUnsentEdit(before.get(row.id), sent.get(row.id))) continue;
           await db.habits.put({ ...row, dirty: 0 });
         }
       }
 
       if (pulled.entries.length > 0) {
         const local = await db.habitEntries.toArray();
-        const before = new Map(local.map((r) => [entryKey(r), r]));
+        const before = byKey(local, entryKey);
+        const sent = byKey(ents, entryKey);
         for (const row of mergeRows(local, pulled.entries, entryKey)) {
-          if (before.get(entryKey(row)) === row) continue;
+          const k = entryKey(row);
+          if (hasUnsentEdit(before.get(k), sent.get(k))) continue;
           await db.habitEntries.put({ ...row, dirty: 0 });
         }
       }
 
       if (pulled.projects.length > 0) {
         const local = await db.projects.toArray();
-        const before = new Map(local.map((r) => [r.id, r]));
+        const before = byKey(local, idKey);
+        const sent = byKey(projs, idKey);
         for (const row of mergeRows(local, pulled.projects, idKey)) {
-          if (before.get(row.id) === row) continue;
+          if (hasUnsentEdit(before.get(row.id), sent.get(row.id))) continue;
           await db.projects.put({ ...row, dirty: 0 });
         }
       }
 
       if (pulled.tasks.length > 0) {
         const local = await db.tasks.toArray();
-        const before = new Map(local.map((r) => [r.id, r]));
+        const before = byKey(local, idKey);
+        const sent = byKey(tsks, idKey);
         for (const row of mergeRows(local, pulled.tasks, idKey)) {
-          if (before.get(row.id) === row) continue;
+          if (hasUnsentEdit(before.get(row.id), sent.get(row.id))) continue;
           await db.tasks.put({ ...row, dirty: 0 });
         }
       }
 
-      // Anything just pushed is now on the server — but only if it is still
-      // the exact row we pushed. If the user edited it while the fetch was
-      // in flight, `updatedAt` has moved: that edit was never sent, so
-      // clearing `dirty` here would mark it synced when it isn't. Leave it
-      // dirty so the next sync picks it up.
+      // Fallback, not the main path. A pushed row normally comes straight
+      // back in the same response — the pull uses `updatedAt > cursor` and
+      // the push just stamped it — so the merge loop above has already
+      // cleared its `dirty` flag by the time we get here. This loop exists
+      // for the rows that did NOT come back: the server can accept a row and
+      // return nothing for it (an empty table short-circuits the loop above
+      // entirely), and without this they would stay dirty forever and be
+      // re-pushed on every sync. The `updatedAt` check is the same guard as
+      // `hasUnsentEdit` in its unpushed-edit form: if the row has moved since
+      // the snapshot, the edit on screen was never sent — leave it dirty.
       for (const c of cats) {
         const current = await db.categories.get(c.id);
         if (current?.updatedAt === c.updatedAt) {
