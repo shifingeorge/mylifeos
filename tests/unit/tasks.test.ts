@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { sortTasks, overdueDays, formatDue } from "@/lib/tasks";
+import { sortTasks, overdueDays, formatDue, doneOnDate } from "@/lib/tasks";
 import type { Priority, Task } from "@/lib/types";
 
 const t = (
@@ -119,5 +119,36 @@ describe("formatDue", () => {
 
   it("is empty for an undated task", () => {
     expect(formatDue(null, "2026-07-31")).toBe("");
+  });
+});
+
+describe("doneOnDate", () => {
+  const done = (id: string, completedAt: string | null): Task => ({
+    ...t(id, "P2", null),
+    done: completedAt !== null,
+    completedAt,
+  });
+
+  it("counts a task completed at 02:00 IST for that IST date", () => {
+    // 02:00 IST on 1 Aug = 20:30 UTC on 31 Jul — the exact case a naive
+    // `completedAt.slice(0, 10)` gets wrong.
+    const tasks = [done("a", "2026-07-31T20:30:00.000Z")];
+    expect(doneOnDate(tasks, "2026-08-01")).toBe(1);
+  });
+
+  it("counts a task completed at 23:00 IST for that same IST date", () => {
+    // 23:00 IST on 31 Jul = 17:30 UTC on 31 Jul.
+    const tasks = [done("a", "2026-07-31T17:30:00.000Z")];
+    expect(doneOnDate(tasks, "2026-07-31")).toBe(1);
+  });
+
+  it("does not count a task completed the previous IST day", () => {
+    const tasks = [done("a", "2026-07-30T12:00:00.000Z")];
+    expect(doneOnDate(tasks, "2026-07-31")).toBe(0);
+  });
+
+  it("does not count an incomplete task with a null completedAt", () => {
+    const tasks = [done("a", null)];
+    expect(doneOnDate(tasks, "2026-07-31")).toBe(0);
   });
 });

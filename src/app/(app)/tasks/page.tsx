@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { todayIST } from "@/lib/date";
-import { sortTasks } from "@/lib/tasks";
+import { doneOnDate, sortTasks } from "@/lib/tasks";
 import {
   db,
   getMeta,
@@ -26,7 +26,10 @@ const UNDO_MS = 5000;
 // the viewport bottom has to clear that whole height, not just 2.75rem —
 // on a phone with a home indicator the tab bar is taller than h-11 alone
 // and a bare `bottom-11` leaves the undo bar partly hidden under it.
-const TAB_BAR_H = "2.75rem";
+// TabBar is h-11 (2.75rem) PLUS a 1px borderTop, and the border adds to the
+// rendered box — so this is 1px taller than the button height alone. If
+// TabBar's border ever changes, this needs to move with it.
+const TAB_BAR_H = "calc(2.75rem + 1px)";
 const SAFE_BOTTOM = "env(safe-area-inset-bottom)";
 const GAP = "0.5rem";
 // The undo bar's own rendered height: the h-11 (2.75rem) button plus its
@@ -116,9 +119,7 @@ export default function TasksPage() {
   };
 
   const open = sortTasks(tasks.filter((t) => !t.done));
-  const doneToday = tasks.filter(
-    (t) => t.done && t.completedAt && t.completedAt.slice(0, 10) === today,
-  ).length;
+  const doneToday = doneOnDate(tasks, today);
 
   const projectName = (id: string | null) =>
     projects.find((p) => p.id === id)?.name ?? null;
