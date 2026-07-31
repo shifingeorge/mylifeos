@@ -50,6 +50,16 @@ export function isFuture(date: ISODate, today: ISODate): boolean {
   return date > today;
 }
 
+/** `date` shifted by `days` (negative goes backward). */
+export function addDays(date: ISODate, days: number): ISODate {
+  return toISO(new Date(parse(date).getTime() + days * DAY_MS));
+}
+
+/** Whole days from `from` to `to`; negative if `to` is earlier. */
+export function daysBetween(from: ISODate, to: ISODate): number {
+  return Math.round((parse(to).getTime() - parse(from).getTime()) / DAY_MS);
+}
+
 /** Column head: `{ dow: 'TUE', dom: '28' }`. */
 export function formatColumn(date: ISODate): { dow: string; dom: string } {
   return { dow: DOW[parse(date).getUTCDay()], dom: date.slice(8, 10) };

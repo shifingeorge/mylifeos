@@ -7,6 +7,8 @@ import {
   formatHeader,
   daysElapsedInMonth,
   monthDates,
+  addDays,
+  daysBetween,
 } from "@/lib/date";
 
 describe("todayIST", () => {
@@ -159,5 +161,41 @@ describe("monthDates", () => {
 
   it("handles February in a leap year", () => {
     expect(monthDates("2028-02-10")).toHaveLength(29);
+  });
+});
+
+describe("addDays", () => {
+  it("returns the same date for zero", () => {
+    expect(addDays("2026-07-28", 0)).toBe("2026-07-28");
+  });
+
+  it("crosses a month boundary", () => {
+    expect(addDays("2026-07-30", 3)).toBe("2026-08-02");
+  });
+
+  it("crosses a year boundary", () => {
+    expect(addDays("2025-12-30", 3)).toBe("2026-01-02");
+  });
+
+  it("goes backward for negative days", () => {
+    expect(addDays("2026-08-02", -3)).toBe("2026-07-30");
+  });
+});
+
+describe("daysBetween", () => {
+  it("is zero for the same date", () => {
+    expect(daysBetween("2026-07-28", "2026-07-28")).toBe(0);
+  });
+
+  it("counts across a month boundary", () => {
+    expect(daysBetween("2026-07-30", "2026-08-02")).toBe(3);
+  });
+
+  it("counts across a year boundary", () => {
+    expect(daysBetween("2025-12-30", "2026-01-02")).toBe(3);
+  });
+
+  it("is negative when to is earlier than from", () => {
+    expect(daysBetween("2026-08-02", "2026-07-30")).toBe(-3);
   });
 });

@@ -60,6 +60,22 @@ describe("sortTasks", () => {
   it("handles an empty list", () => {
     expect(sortTasks([])).toEqual([]);
   });
+
+  it("breaks a full tie (priority, due, createdAt) deterministically by id", () => {
+    const out = sortTasks([
+      t("b", "P1", "2026-08-01", "2026-07-01T00:00:00Z"),
+      t("a", "P1", "2026-08-01", "2026-07-01T00:00:00Z"),
+    ]);
+    expect(out.map((x) => x.id)).toEqual(["a", "b"]);
+  });
+
+  it("is antisymmetric: input order does not change the result for a full tie", () => {
+    const a = t("a", "P1", "2026-08-01", "2026-07-01T00:00:00Z");
+    const b = t("b", "P1", "2026-08-01", "2026-07-01T00:00:00Z");
+    expect(sortTasks([a, b]).map((x) => x.id)).toEqual(
+      sortTasks([b, a]).map((x) => x.id),
+    );
+  });
 });
 
 describe("overdueDays", () => {
