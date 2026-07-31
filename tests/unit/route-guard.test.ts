@@ -4,6 +4,10 @@ import { config } from "@/proxy";
 /**
  * The matcher is the whole guard. Reading it and believing it is how a route
  * ships unguarded, so every path is asserted.
+ *
+ * This models the matcher as `^<regex>$`, whereas Next compiles it with
+ * additional optional prefixes and suffixes. It is a close approximation,
+ * not proof of runtime behaviour — see step 5 for the real check.
  */
 const matches = (path: string) =>
   new RegExp(`^${config.matcher[0]}$`).test(path);
@@ -20,6 +24,11 @@ describe("proxy matcher", () => {
     "/api/sync",
     "/api/journal",
     "/some/route/nobody/has/written/yet",
+    "/unlockable",
+    "/api/authenticate",
+    "/manifesto",
+    "/settings/manifest-editor",
+    "/icon-picker",
   ];
 
   for (const path of guarded) {
@@ -32,9 +41,12 @@ describe("proxy matcher", () => {
     "/unlock",
     "/api/auth",
     "/api/health",
-    "/manifest.webmanifest",
+    "/manifest.json",
+    "/manifest.dev.json",
     "/sw.js",
-    "/icons/icon-192.png",
+    "/icon-192.png",
+    "/icon-512.png",
+    "/icon-dev-192.png",
     "/_next/static/chunk.js",
     "/favicon.ico",
   ];

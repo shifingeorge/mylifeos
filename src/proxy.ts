@@ -17,15 +17,16 @@ export async function proxy(req: NextRequest) {
 export const config = {
   /**
    * A denylist, not an allowlist: a route added tomorrow is guarded unless
-   * somebody deliberately excludes it. Every exception below has a reason.
+   * somebody deliberately excludes it. Every exception below is anchored —
+   * an unanchored prefix would make /unlockable and /api/authenticate public.
    *
    *   unlock, api/auth  — the pages that issue the token
    *   api/health        — must answer when auth is what is broken
-   *   manifest, sw.js,  — static assets the service worker fetches without
-   *   icons, _next,       cookies; guarding them breaks install and offline
-   *   favicon
+   *   manifests, sw.js, — fetched by the service worker without cookies;
+   *   icon-*.png,         guarding them breaks PWA install and offline
+   *   _next, favicon
    */
   matcher: [
-    "/((?!unlock|api/auth|api/health|manifest|sw\\.js|icons/|_next/|favicon\\.ico).*)",
+    "/((?!unlock$|api/auth$|api/health$|manifest\\.json$|manifest\\.dev\\.json$|sw\\.js$|icon-.*\\.png$|_next/|favicon\\.ico$).*)",
   ],
 };
