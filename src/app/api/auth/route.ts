@@ -62,3 +62,14 @@ export async function POST(req: Request) {
   });
   return res;
 }
+
+/**
+ * Locking clears the token. Local data is deliberately left alone — the whole
+ * point of the ledger is that it survives, and the next unlock needs no
+ * network.
+ */
+export async function DELETE() {
+  const res = NextResponse.json({ ok: true });
+  res.cookies.set(COOKIE_NAME, "", { maxAge: 0, path: "/" });
+  return res;
+}
