@@ -15,6 +15,13 @@
       "when": 1785515520359,
       "tag": "0001_overjoyed_mantis",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785518739251,
+      "tag": "0002_optimal_redwing",
+      "breakpoints": true
     }
   ]
 }

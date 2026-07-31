@@ -1,4 +1,4 @@
-import type { Category, Habit } from "../types";
+import type { Category, Habit, Project } from "../types";
 
 const T = "2026-07-29T00:00:00.000Z";
 
@@ -47,4 +47,15 @@ export const SEED_HABITS: Habit[] = [
   h("video", "VIDEO", "growing", "output", 11),
 
   h("birdfood", "BIRD FOOD", "growing", "home", 12),
+];
+
+/**
+ * The four projects from the design doc's mockup. Editable from Settings on
+ * day one, so these are a starting point rather than a decision.
+ */
+export const SEED_PROJECTS: Project[] = [
+  { id: "smashed", name: "SMASHED", sortOrder: 1, active: true, updatedAt: T },
+  { id: "mine", name: "MINE", sortOrder: 2, active: true, updatedAt: T },
+  { id: "home", name: "HOME", sortOrder: 3, active: true, updatedAt: T },
+  { id: "pbrand", name: "P_BRAND", sortOrder: 4, active: true, updatedAt: T },
 ];

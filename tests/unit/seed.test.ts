@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SEED_CATEGORIES, SEED_HABITS } from "@/lib/db/seed";
+import { SEED_CATEGORIES, SEED_HABITS, SEED_PROJECTS } from "@/lib/db/seed";
 
 describe("seed data", () => {
   it("has exactly 12 habits", () => {
@@ -88,5 +88,23 @@ describe("seed data", () => {
       ...SEED_HABITS.map((h) => h.updatedAt),
     ]);
     expect(stamps.size).toBe(1);
+  });
+});
+
+describe("seed projects", () => {
+  it("has the four projects from the design doc", () => {
+    expect(
+      [...SEED_PROJECTS].sort((a, b) => a.sortOrder - b.sortOrder).map((p) => p.name),
+    ).toEqual(["SMASHED", "MINE", "HOME", "P_BRAND"]);
+  });
+
+  it("marks every project active", () => {
+    expect(SEED_PROJECTS.every((p) => p.active)).toBe(true);
+  });
+
+  it("gives every project a unique id", () => {
+    expect(new Set(SEED_PROJECTS.map((p) => p.id)).size).toBe(
+      SEED_PROJECTS.length,
+    );
   });
 });

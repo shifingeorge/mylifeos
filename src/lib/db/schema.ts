@@ -54,3 +54,30 @@ export const habitEntries = pgTable(
   },
   (t) => [primaryKey({ columns: [t.habitId, t.date] })],
 );
+
+export const projects = pgTable("projects", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  sortOrder: integer("sort_order").notNull(),
+  active: boolean("active").notNull().default(true),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const tasks = pgTable("tasks", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  priority: text("priority").notNull(),
+  /** Nullable: unfiled is a real state. */
+  projectId: text("project_id").references(() => projects.id),
+  due: date("due"),
+  // A completed task is never deleted — it is the only record of what got
+  // finished.
+  done: boolean("done").notNull().default(false),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});

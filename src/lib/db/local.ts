@@ -1,7 +1,7 @@
 import Dexie, { type Table } from "dexie";
-import type { Category, Habit, HabitEntry } from "../types";
+import type { Category, Habit, HabitEntry, Project, Task } from "../types";
 import type { ISODate } from "../date";
-import { SEED_CATEGORIES, SEED_HABITS } from "./seed";
+import { SEED_CATEGORIES, SEED_HABITS, SEED_PROJECTS } from "./seed";
 
 interface Meta {
   key: string;
@@ -12,6 +12,8 @@ class LifeOSDB extends Dexie {
   categories!: Table<Category, string>;
   habits!: Table<Habit, string>;
   habitEntries!: Table<HabitEntry, [string, string]>;
+  projects!: Table<Project, string>;
+  tasks!: Table<Task, string>;
   meta!: Table<Meta, string>;
 
   constructor() {
@@ -53,19 +55,43 @@ class LifeOSDB extends Dexie {
             h.dirty = 0;
           });
       });
+
+    // `done` is deliberately not indexed — Dexie cannot index booleans, and
+    // at tens of rows filtering in memory costs nothing.
+    this.version(3).stores({
+      categories: "id, sortOrder, dirty",
+      habits: "id, categoryId, sortOrder, tier, dirty",
+      habitEntries: "[habitId+date], date, habitId, dirty",
+      projects: "id, sortOrder, dirty",
+      tasks: "id, projectId, due, dirty",
+      meta: "key",
+    });
   }
 }
 
 export const db = new LifeOSDB();
 
 export async function seedIfEmpty(): Promise<void> {
-  if ((await db.habits.count()) > 0) return;
-  await db.transaction("rw", db.categories, db.habits, async () => {
-    // dirty: 1 — the server no longer seeds itself, so a fresh device is
-    // what populates an empty database.
-    await db.categories.bulkPut(SEED_CATEGORIES.map((c) => ({ ...c, dirty: 1 as const })));
-    await db.habits.bulkPut(SEED_HABITS.map((h) => ({ ...h, dirty: 1 as const })));
-  });
+  if ((await db.habits.count()) === 0) {
+    await db.transaction("rw", db.categories, db.habits, async () => {
+      // dirty: 1 — the server no longer seeds itself, so a fresh device is
+      // what populates an empty database.
+      await db.categories.bulkPut(
+        SEED_CATEGORIES.map((c) => ({ ...c, dirty: 1 as const })),
+      );
+      await db.habits.bulkPut(
+        SEED_HABITS.map((h) => ({ ...h, dirty: 1 as const })),
+      );
+    });
+  }
+
+  // Separate check: a device upgrading from v2 already has habits but has
+  // never seen a project.
+  if ((await db.projects.count()) === 0) {
+    await db.projects.bulkPut(
+      SEED_PROJECTS.map((p) => ({ ...p, dirty: 1 as const })),
+    );
+  }
 }
 
 export function getEntry(habitId: string, date: ISODate) {
@@ -108,4 +134,24 @@ export async function putCategory(c: Category): Promise<void> {
 
 export async function putHabit(h: Habit): Promise<void> {
   await db.habits.put({ ...h, dirty: 1 });
+}
+
+export function dirtyProjects() {
+  return db.projects.where("dirty").equals(1).toArray();
+}
+
+export function dirtyTasks() {
+  return db.tasks.where("dirty").equals(1).toArray();
+}
+
+export async function putProject(p: Project): Promise<void> {
+  await db.projects.put({ ...p, dirty: 1 });
+}
+
+export async function putTask(t: Task): Promise<void> {
+  await db.tasks.put({ ...t, dirty: 1 });
+}
+
+export function openTasks() {
+  return db.tasks.filter((t) => !t.done).toArray();
 }
