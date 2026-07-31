@@ -90,15 +90,26 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
     async () => {
       // Each merge loop writes the winner of last-write-wins back to Dexie
       // and clears `dirty`, because a row the server just handed back is by
-      // definition on the server. The one exception is `hasUnsentEdit`: a
-      // row holding a local edit this request never carried is left exactly
-      // as it is, dirty flag included, for the next sync to push.
+      // definition on the server. Two rows are skipped instead: one holding
+      // a local edit this request never carried (`hasUnsentEdit` — left
+      // exactly as it is, dirty flag included, for the next sync to push),
+      // and one the merge did not change at all (see the fast path below).
       if (pulled.categories.length > 0) {
         const local = await db.categories.toArray();
         const before = byKey(local, idKey);
         const sent = byKey(cats, idKey);
         for (const row of mergeRows(local, pulled.categories, idKey)) {
           if (hasUnsentEdit(before.get(row.id), sent.get(row.id))) continue;
+          // Fast path: the same object reference means the merge changed
+          // nothing, so the put would write back what is already there. It
+          // has to be skipped, not merely allowed — the pull is non-empty on
+          // essentially every sync (the server echoes the row you just
+          // pushed), so without this every clean row in the table is
+          // rewritten each time, and habitEntries grows at ~15 rows a day
+          // forever. Must come after the unsent-edit guard: a dirty row can
+          // also merge to itself, and skipping it here would be the right
+          // action for the wrong reason.
+          if (before.get(row.id) === row && row.dirty === 0) continue;
           await db.categories.put({ ...row, dirty: 0 });
         }
       }
@@ -109,6 +120,7 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
         const sent = byKey(habs, idKey);
         for (const row of mergeRows(local, pulled.habits, idKey)) {
           if (hasUnsentEdit(before.get(row.id), sent.get(row.id))) continue;
+          if (before.get(row.id) === row && row.dirty === 0) continue;
           await db.habits.put({ ...row, dirty: 0 });
         }
       }
@@ -120,6 +132,7 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
         for (const row of mergeRows(local, pulled.entries, entryKey)) {
           const k = entryKey(row);
           if (hasUnsentEdit(before.get(k), sent.get(k))) continue;
+          if (before.get(k) === row && row.dirty === 0) continue;
           await db.habitEntries.put({ ...row, dirty: 0 });
         }
       }
@@ -130,6 +143,7 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
         const sent = byKey(projs, idKey);
         for (const row of mergeRows(local, pulled.projects, idKey)) {
           if (hasUnsentEdit(before.get(row.id), sent.get(row.id))) continue;
+          if (before.get(row.id) === row && row.dirty === 0) continue;
           await db.projects.put({ ...row, dirty: 0 });
         }
       }
@@ -140,6 +154,7 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
         const sent = byKey(tsks, idKey);
         for (const row of mergeRows(local, pulled.tasks, idKey)) {
           if (hasUnsentEdit(before.get(row.id), sent.get(row.id))) continue;
+          if (before.get(row.id) === row && row.dirty === 0) continue;
           await db.tasks.put({ ...row, dirty: 0 });
         }
       }

@@ -16,16 +16,23 @@
  * worse than one that is a day behind.
  */
 
-// Bumped to v2 with the move of every entry point from /habits to Home:
-// an already-installed client holds a `lifeos-shell-v1` whose only precached
-// navigation is /habits, and the offline fallback below now looks for "/".
-// Without a new cache name that client would keep answering a cold offline
-// launch from the old shell — or from nothing at all — until it happened to
-// visit Home while online. The bump drops both v1 caches on activate and
-// re-warms the shell at the new URL.
-const VERSION = "v2";
-const SHELL = `lifeos-shell-${VERSION}`;
-const ASSETS = `lifeos-assets-${VERSION}`;
+// Two versions, deliberately independent. The shell caches navigations by
+// URL, so it has to be invalidated whenever the set of URLs changes —
+// v2 is the move of every entry point from /habits to Home: an installed
+// client's `lifeos-shell-v1` precached only /habits, while the offline
+// fallback below now looks for "/", so without a new name that client would
+// keep answering a cold offline launch from the stale shell until it
+// happened to visit Home while online.
+//
+// Assets are content-hashed and immutable, keyed by a URL that changes
+// whenever the bytes do, so nothing about a shell change can invalidate
+// them. Sharing one constant meant a shell bump also evicted every
+// /_next/static chunk on the device and made the next launch re-download a
+// bundle it already had, offline or not. Bump these separately.
+const SHELL_VERSION = "v2";
+const ASSETS_VERSION = "v1";
+const SHELL = `lifeos-shell-${SHELL_VERSION}`;
+const ASSETS = `lifeos-assets-${ASSETS_VERSION}`;
 const KEEP = new Set([SHELL, ASSETS]);
 
 self.addEventListener("install", (event) => {

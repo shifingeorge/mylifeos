@@ -84,8 +84,12 @@ request to a Vercel login page. It must be disabled: a service worker cannot
 authenticate through that redirect, so the PWA would never install or work
 offline, and the app would be unreachable on the phone.
 
-The app is not left unprotected by this. `proxy.ts` guards `/habits` and
-`/api/sync`, and the PIN is argon2id-hashed and verified server-side with a
+The app is not left unprotected by this. `proxy.ts` matches on a denylist,
+not an allowlist: every route is guarded except an explicit public list
+(`/unlock`, `/api/auth`, `/api/health`, the manifests, the icons and Next's
+own static output). A route added tomorrow is therefore guarded by default —
+forgetting to protect a new screen is not a mistake this configuration lets
+you make. The PIN itself is argon2id-hashed and verified server-side with a
 lockout that doubles to an hour. Anyone reaching the URL sees only the unlock
 screen.
 

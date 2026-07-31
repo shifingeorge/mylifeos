@@ -134,6 +134,35 @@ describe("sync", () => {
     expect(after?.dirty).toBe(0);
   });
 
+  it("does not rewrite clean rows the merge left alone", async () => {
+    // The pull is non-empty on essentially every sync, because the server
+    // echoes back whatever was just pushed. If an unchanged row still took a
+    // put, every sync would rewrite the whole table row by row inside one
+    // IndexedDB transaction — and habitEntries grows ~15 rows a day forever.
+    await db.tasks.bulkPut([
+      task({ id: "a", dirty: 0 }),
+      task({ id: "b", dirty: 0 }),
+      task({ id: "c", dirty: 0 }),
+    ]);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        response({
+          tasks: [echoed(task({ id: "unrelated" }), SERVER_TIME)],
+        }),
+      ),
+    );
+
+    const put = vi.spyOn(db.tasks, "put");
+    await sync();
+    const written = put.mock.calls.map(([row]) => (row as Task).id);
+    put.mockRestore();
+
+    // Only the row that actually arrived. a/b/c merged to themselves.
+    expect(written).toEqual(["unrelated"]);
+  });
+
   it("leaves every dirty row dirty and the cursor untouched when the request fails", async () => {
     await setMeta("syncCursor", T0);
     await db.tasks.put(task({ dirty: 1 }));
