@@ -51,9 +51,10 @@ button {
   touch-action: manipulation;
 }
 
-/* MenuSheet's backdrop. Only one <dialog> exists in the app, so an element
-   selector is safe. Not a theme colour — the dim has no CSS variable and
-   isn't part of the paper/terminal palette, it's a browser-chrome effect. */
+/* Shared backdrop for every <dialog> (MenuSheet, Sheet, ...). An element
+   selector is fine since all of them want the same dim. Not a theme colour —
+   the dim has no CSS variable and isn't part of the paper/terminal palette,
+   it's a browser-chrome effect. */
 dialog::backdrop {
   background: rgba(0, 0, 0, 0.4);
 }
