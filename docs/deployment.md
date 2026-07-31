@@ -50,6 +50,32 @@ there, unescaped.
 5. Verify preview on the phone — unlock, tick, reload, airplane-mode reload —
    before merging to `main`.
 
+## Checking a deployment
+
+`GET /api/health` reports whether the instance is configured, without
+requiring the PIN — it has to answer when auth is the thing that is broken:
+
+```sh
+curl -s https://<deployment>/api/health
+{"ok":true,"env":"dev","missing":[],"problems":[],"dbHost":"ep-flat-unit-…"}
+```
+
+`200` when configured, `503` when not. `dbHost` confirms the environment is
+pointed at the right Neon branch, which is the mistake with the worst
+consequences. No secret value is ever included in the response.
+
+## Deployment protection
+
+Vercel enables **Vercel Authentication** on new projects, which bounces every
+request to a Vercel login page. It must be disabled: a service worker cannot
+authenticate through that redirect, so the PWA would never install or work
+offline, and the app would be unreachable on the phone.
+
+The app is not left unprotected by this. `proxy.ts` guards `/habits` and
+`/api/sync`, and the PIN is argon2id-hashed and verified server-side with a
+lockout that doubles to an hour. Anyone reaching the URL sees only the unlock
+screen.
+
 ## Migrations
 
 `drizzle-kit migrate` reads `DATABASE_URL` from the environment. Run it once
