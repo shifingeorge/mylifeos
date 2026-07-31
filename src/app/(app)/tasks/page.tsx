@@ -16,6 +16,7 @@ import { AppHeader } from "@/components/AppHeader";
 import { CaptureSheet } from "@/components/CaptureSheet";
 import { DBUnavailable } from "@/components/DBUnavailable";
 import { SyncFooter } from "@/components/SyncFooter";
+import { ABOVE_TAB_BAR, FAB_BOTTOM } from "@/components/TabBar";
 import { TaskRow } from "@/components/TaskRow";
 import { lastSyncAt } from "@/lib/sync/engine";
 import { useSynced } from "@/lib/use-synced";
@@ -23,21 +24,11 @@ import { useSynced } from "@/lib/use-synced";
 const LAST_PROJECT = "lastProjectId";
 const UNDO_MS = 5000;
 
-// Fixed-position math for the undo bar and the FAB. TabBar renders at
-// h-11 (2.75rem) plus the device's safe-area inset, so anything fixed to
-// the viewport bottom has to clear that whole height, not just 2.75rem —
-// on a phone with a home indicator the tab bar is taller than h-11 alone
-// and a bare `bottom-11` leaves the undo bar partly hidden under it.
-// TabBar is h-11 (2.75rem) PLUS a 1px borderTop, and the border adds to the
-// rendered box — so this is 1px taller than the button height alone. If
-// TabBar's border ever changes, this needs to move with it.
-const TAB_BAR_H = "calc(2.75rem + 1px)";
-const SAFE_BOTTOM = "env(safe-area-inset-bottom)";
-const GAP = "0.5rem";
 // The undo bar's own rendered height: the h-11 (2.75rem) button plus its
 // py-3 (1.5rem total) padding. Needed so the FAB can be pushed above it —
-// otherwise the FAB (bottom-16, h-14) overlaps the undo bar's top half
-// whenever both are visible at once.
+// otherwise the FAB overlaps the undo bar's top half whenever both are
+// visible at once. The tab-bar offsets it stacks on come from TabBar
+// itself, so they cannot drift from the bar they are measuring.
 const UNDO_BAR_H = "4.25rem";
 
 export default function TasksPage() {
@@ -188,7 +179,7 @@ export default function TasksPage() {
           role="status"
           className="fixed inset-x-0 z-40 mx-auto flex max-w-2xl items-center justify-between px-3 py-3"
           style={{
-            bottom: `calc(${TAB_BAR_H} + ${SAFE_BOTTOM})`,
+            bottom: ABOVE_TAB_BAR,
             background: "var(--type)",
             color: "var(--ground)",
           }}
@@ -213,9 +204,7 @@ export default function TasksPage() {
         style={{
           // Clears the tab bar always, and rises above the undo bar too
           // while it's showing, so the two fixed elements never overlap.
-          bottom: `calc(${TAB_BAR_H} + ${SAFE_BOTTOM} + ${GAP} + ${
-            undo ? UNDO_BAR_H : "0rem"
-          })`,
+          bottom: undo ? `calc(${FAB_BOTTOM} + ${UNDO_BAR_H})` : FAB_BOTTOM,
           background: "var(--accent)",
           color: "var(--ground)",
         }}

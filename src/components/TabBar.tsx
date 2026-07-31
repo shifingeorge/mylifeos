@@ -15,6 +15,28 @@ const TABS = [
   { href: "/money", label: "MONEY" },
 ];
 
+/**
+ * What anything fixed to the viewport bottom has to clear. Exported from
+ * this file, not restated by each caller, because it is derived from the
+ * `h-11` and the `borderTop` a few lines below and has to move with them.
+ *
+ * `h-11` is 2.75rem, and the 1px border adds to the rendered box, so the
+ * bar is 1px taller than the tap target alone. On top of that comes the
+ * safe-area inset: on a phone with a home indicator the bar is taller than
+ * 2.75rem, which is why a bare `bottom-11`/`bottom-16` overlaps it and
+ * swallows taps on the fourth tab.
+ */
+export const TAB_BAR_H = "calc(2.75rem + 1px)";
+export const SAFE_BOTTOM = "env(safe-area-inset-bottom)";
+/** Breathing room between the tab bar and a floating control above it. */
+export const FAB_GAP = "0.5rem";
+
+/** Sits flush on top of the tab bar — full-width bars, not floating ones. */
+export const ABOVE_TAB_BAR = `calc(${TAB_BAR_H} + ${SAFE_BOTTOM})`;
+
+/** Where a floating `+` button belongs on every screen that has one. */
+export const FAB_BOTTOM = `calc(${TAB_BAR_H} + ${SAFE_BOTTOM} + ${FAB_GAP})`;
+
 export function TabBar() {
   const pathname = usePathname();
 

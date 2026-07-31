@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Sheet } from "./Sheet";
+import { FAB_BOTTOM } from "./TabBar";
 
 export interface ListItem {
   id: string;
@@ -100,8 +101,15 @@ export function ListEditor({
           setDraft("");
           setAdding(true);
         }}
-        className="fixed bottom-16 right-4 z-30 h-14 w-14 rounded-full text-[20px]"
-        style={{ background: "var(--accent)", color: "var(--ground)" }}
+        className="fixed right-4 z-30 h-14 w-14 rounded-full text-[20px]"
+        style={{
+          // Not `bottom-16`: 4rem is shorter than the tab bar on a phone
+          // with a home indicator, so this button used to sit on top of the
+          // fourth tab and eat its taps. Same offset the tasks FAB uses.
+          bottom: FAB_BOTTOM,
+          background: "var(--accent)",
+          color: "var(--ground)",
+        }}
       >
         +
       </button>
