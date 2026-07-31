@@ -1068,10 +1068,18 @@ Then in `src/app/(app)/habits/page.tsx`, replace the outer `<main>` so the shell
   );
 ```
 
-Import `AppHeader` from `@/components/AppHeader`, and in `src/components/DayHeader.tsx` export a second component holding just the right-hand block, so the score is not duplicated:
+Import `AppHeader` from `@/components/AppHeader`, and **replace** the whole of `src/components/DayHeader.tsx` — `AppHeader` now owns the frame and the `LIFE_OS` label, so the old `DayHeader` is dead code and goes:
 
 ```tsx
-/** The date and score block, without the frame. Used inside AppHeader. */
+import { formatHeader } from "@/lib/date";
+import { formatDayScore, type DayScore } from "@/lib/score";
+
+/**
+ * The date and the one number that matters today. The only display type on
+ * the screen (Syne) — design doc §5.2, one display moment per screen.
+ *
+ * The frame that used to live here belongs to AppHeader now.
+ */
 export function DayHeaderScore({
   today,
   score,
@@ -1101,7 +1109,7 @@ export function DayHeaderScore({
 }
 ```
 
-Leave the existing `DayHeader` export in place — the e2e test's score assertion goes through the rendered text either way, and deleting it is a separate change.
+The e2e spine test asserts on the rendered score text (`/CORE \d+\/6 · \+\d+/`), which `DayHeaderScore` still produces, so it keeps passing.
 
 - [ ] **Step 6: Check it renders**
 
@@ -2546,7 +2554,7 @@ git commit -m "feat: task ledger with capture, complete and undo"
 
 **Interfaces:**
 - Consumes: `putProject`, `db` from `@/lib/db/local`
-- Produces: `<ListEditor items={ListItem[]} onRename={(id, name) => void} onReorder={(id, dir) => void} onAdd={(name) => void} onArchive={(id) => void} blockedReason={(id) => string | null} />` where `ListItem = { id: string; name: string; blocked?: string | null }`; `DELETE /api/auth` clearing the cookie
+- Produces: `<ListEditor items={ListItem[]} onRename={(id, name) => void} onReorder={(id, direction: -1 | 1) => void} onAdd={(name) => void} onArchive={(id) => void} />` where `ListItem = { id: string; name: string; blocked?: string | null }` — the blocked reason travels on the item, not as a separate callback; `DELETE /api/auth` clearing the cookie
 
 - [ ] **Step 1: Build the shared list editor**
 
