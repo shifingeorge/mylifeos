@@ -42,3 +42,31 @@ export interface HabitEntry {
   /** 1 = pending push. Dexie cannot index booleans, so this is not a bool. */
   dirty?: 1 | 0;
 }
+
+export interface Project {
+  id: string;
+  name: string;
+  sortOrder: number;
+  /** Archived projects stay, so old tasks keep their tag. */
+  active: boolean;
+  updatedAt: string;
+  dirty?: 1 | 0;
+}
+
+export interface Task {
+  id: string;
+  title: string;
+  priority: Priority;
+  /** null = unfiled, which is a real state and not a missing value. */
+  projectId: string | null;
+  due: ISODate | null;
+  /**
+   * A plain boolean, unlike `dirty`, because it is never a Dexie index —
+   * task volume is tens of rows and filtering happens in memory.
+   */
+  done: boolean;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  dirty?: 1 | 0;
+}
