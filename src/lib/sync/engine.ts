@@ -57,34 +57,56 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
     async () => {
       if (pulled.categories.length > 0) {
         const local = await db.categories.toArray();
+        const before = new Map(local.map((r) => [r.id, r]));
         for (const row of mergeRows(local, pulled.categories, idKey)) {
+          // Same reference means the local row won the merge — leave it
+          // exactly as it is, dirty flag included. Rewriting it would clear
+          // a pending edit that has not been pushed yet.
+          if (before.get(row.id) === row) continue;
           await db.categories.put({ ...row, dirty: 0 });
         }
       }
 
       if (pulled.habits.length > 0) {
         const local = await db.habits.toArray();
+        const before = new Map(local.map((r) => [r.id, r]));
         for (const row of mergeRows(local, pulled.habits, idKey)) {
+          if (before.get(row.id) === row) continue;
           await db.habits.put({ ...row, dirty: 0 });
         }
       }
 
       if (pulled.entries.length > 0) {
         const local = await db.habitEntries.toArray();
+        const before = new Map(local.map((r) => [entryKey(r), r]));
         for (const row of mergeRows(local, pulled.entries, entryKey)) {
+          if (before.get(entryKey(row)) === row) continue;
           await db.habitEntries.put({ ...row, dirty: 0 });
         }
       }
 
-      // Anything just pushed is now on the server. This runs after the merge
-      // writes above so a row that was dirty at push time and also came back
-      // in the pull still ends up clean: the merge put() may have written a
-      // stale `dirty` value from the remote copy, and this pass is what
-      // guarantees the final state is 0, not whatever the merge left behind.
-      for (const c of cats) await db.categories.update(c.id, { dirty: 0 });
-      for (const h of habs) await db.habits.update(h.id, { dirty: 0 });
+      // Anything just pushed is now on the server — but only if it is still
+      // the exact row we pushed. If the user edited it while the fetch was
+      // in flight, `updatedAt` has moved: that edit was never sent, so
+      // clearing `dirty` here would mark it synced when it isn't. Leave it
+      // dirty so the next sync picks it up.
+      for (const c of cats) {
+        const current = await db.categories.get(c.id);
+        if (current?.updatedAt === c.updatedAt) {
+          await db.categories.update(c.id, { dirty: 0 });
+        }
+      }
+      for (const h of habs) {
+        const current = await db.habits.get(h.id);
+        if (current?.updatedAt === h.updatedAt) {
+          await db.habits.update(h.id, { dirty: 0 });
+        }
+      }
       for (const e of ents) {
-        await db.habitEntries.update([e.habitId, e.date], { dirty: 0 });
+        const current = await db.habitEntries.get([e.habitId, e.date]);
+        if (current?.updatedAt === e.updatedAt) {
+          await db.habitEntries.update([e.habitId, e.date], { dirty: 0 });
+        }
       }
 
       await setMeta(CURSOR, pulled.serverTime);

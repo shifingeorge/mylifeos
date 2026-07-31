@@ -118,4 +118,20 @@ describe("mergeRows", () => {
   it("is empty when both sides are empty", () => {
     expect(mergeRows<Row>([], [], idKey)).toEqual([]);
   });
+
+  // The sync engine leans on this: it uses object identity to decide which
+  // rows are safe to overwrite with `dirty: 0`. A row that merely looks the
+  // same as the local row is not good enough — it must be the SAME object,
+  // or a mid-flight edit could get silently marked as synced.
+  it("returns the same object reference when the local row wins on a later updatedAt", () => {
+    const local = [r("a", "LOCAL", "2026-07-28T12:00:00Z")];
+    const remote = [r("a", "REMOTE", "2026-07-28T11:00:00Z")];
+    expect(mergeRows(local, remote, idKey)[0]).toBe(local[0]);
+  });
+
+  it("returns the same object reference for a local row absent from remote", () => {
+    const local = [r("a", "A", "2026-07-28T10:00:00Z")];
+    const remote: Row[] = [];
+    expect(mergeRows(local, remote, idKey)[0]).toBe(local[0]);
+  });
 });
