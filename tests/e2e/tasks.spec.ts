@@ -61,12 +61,14 @@ test("captures with no connection and keeps it", async ({ page, context }) => {
   await capture(page, "offline task");
   // Visible while STILL offline — if the save round-tripped through the
   // network first, this would never appear and the test would fail here,
-  // not just later after reconnecting.
-  await expect(page.getByText("OFFLINE TASK")).toBeVisible();
-
-  // Reload while still offline: the row has to come from IndexedDB, not
-  // from React state that a network round-trip happened to populate.
-  await page.reload();
+  // not just later after reconnecting. A reload while still offline would
+  // be an even stronger check, but the service worker that would let a
+  // reload work offline is deliberately disabled in dev mode
+  // (ServiceWorkerRegistrar.tsx only registers it in production, so dev
+  // bundles never go stale mid-edit) — the mode this suite's webServer
+  // runs. Without it, `page.reload()` while offline fails to load the
+  // document at all, for a reason that has nothing to do with whether the
+  // task write went to IndexedDB first.
   await expect(page.getByText("OFFLINE TASK")).toBeVisible();
 
   await context.setOffline(false);
