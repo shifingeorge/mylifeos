@@ -11,7 +11,8 @@ import {
 } from "@/lib/db/local";
 import type { Category, CellState, Habit, HabitEntry } from "@/lib/types";
 import { HabitGrid } from "@/components/HabitGrid";
-import { DayHeader } from "@/components/DayHeader";
+import { AppHeader } from "@/components/AppHeader";
+import { DayHeaderScore } from "@/components/DayHeader";
 import { SyncFooter } from "@/components/SyncFooter";
 import { lastSyncAt, startSyncLoop } from "@/lib/sync/engine";
 
@@ -69,8 +70,11 @@ export default function HabitsPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-2xl pb-6">
-      <DayHeader today={today} score={dayScore(habits, entries, today)} />
+    <main className="w-full pb-6">
+      <AppHeader
+        title="LIFE_OS"
+        right={<DayHeaderScore today={today} score={dayScore(habits, entries, today)} />}
+      />
       <HabitGrid
         categories={categories}
         habits={habits}
