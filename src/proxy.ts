@@ -15,8 +15,17 @@ export async function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // `/api/auth` is absent deliberately — it is the route that issues the
-  // token. The narrow matcher also keeps the guard off _next/static and
-  // public/, which would otherwise be redirected and break the app's own CSS.
-  matcher: ["/habits/:path*", "/api/sync/:path*"],
+  /**
+   * A denylist, not an allowlist: a route added tomorrow is guarded unless
+   * somebody deliberately excludes it. Every exception below has a reason.
+   *
+   *   unlock, api/auth  — the pages that issue the token
+   *   api/health        — must answer when auth is what is broken
+   *   manifest, sw.js,  — static assets the service worker fetches without
+   *   icons, _next,       cookies; guarding them breaks install and offline
+   *   favicon
+   */
+  matcher: [
+    "/((?!unlock|api/auth|api/health|manifest|sw\\.js|icons/|_next/|favicon\\.ico).*)",
+  ],
 };
