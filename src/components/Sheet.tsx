@@ -64,6 +64,15 @@ export function Sheet({
       // without this, `open` state stays true while the dialog itself is
       // shut, and the trigger that opened it then looks dead.
       onClose={onClose}
+      // The <dialog> element itself IS the exposed backdrop area (its box
+      // fills the viewport; the visible sheet is a child div pinned to the
+      // bottom). A click lands on the dialog only when it didn't land on
+      // any child first — checking e.target against the dialog node is how
+      // we tell "tapped the dim area" from "tapped the sheet content"
+      // without stopPropagation on every interactive child.
+      onClick={(e) => {
+        if (e.target === dialogRef.current) onClose();
+      }}
       style={{
         // Inline styles beat both Tailwind's utility classes and the UA
         // stylesheet's centred, fit-content `dialog[open]` box, so this is
@@ -90,12 +99,26 @@ export function Sheet({
           paddingBottom: "calc(1.5rem + env(safe-area-inset-bottom))",
         }}
       >
-        <h2
-          className="pb-3 text-[10px] tracking-[0.18em]"
-          style={{ color: "var(--type-muted)" }}
-        >
-          {title}
-        </h2>
+        <div className="flex items-center justify-between pb-3">
+          <h2
+            className="text-[10px] tracking-[0.18em]"
+            style={{ color: "var(--type-muted)" }}
+          >
+            {title}
+          </h2>
+          {/* A visible, always-working dismiss. The backdrop tap above is a
+              gesture the user has to guess exists; this is the control that
+              doesn't require guessing. */}
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+            className="h-11 w-11 text-[15px]"
+            style={{ color: "var(--type-muted)" }}
+          >
+            ✕
+          </button>
+        </div>
         {children}
       </div>
     </dialog>
