@@ -71,6 +71,21 @@ class LifeOSDB extends Dexie {
 
 export const db = new LifeOSDB();
 
+/**
+ * Opens the database explicitly, so a failed upgrade is something a screen
+ * can catch and say out loud.
+ *
+ * Dexie opens lazily on the first query, which means an upgrade that throws
+ * on this device surfaces as every read rejecting — and a screen that fires
+ * its reads inside an unhandled `void (async () => …)()` renders as an empty
+ * app instead. Awaiting this first turns that into one rejection, at one
+ * place, that maps to one visible message. Calling it when the database is
+ * already open is free.
+ */
+export async function openDB(): Promise<void> {
+  await db.open();
+}
+
 export async function seedIfEmpty(): Promise<void> {
   if ((await db.habits.count()) === 0) {
     await db.transaction("rw", db.categories, db.habits, async () => {

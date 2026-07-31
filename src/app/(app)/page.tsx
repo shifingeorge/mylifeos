@@ -3,10 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatHeader, rollingWindow, todayIST } from "@/lib/date";
 import { dayScore, formatDayScore } from "@/lib/score";
-import { db, entriesForDates, seedIfEmpty } from "@/lib/db/local";
+import { db, entriesForDates, openDB, seedIfEmpty } from "@/lib/db/local";
 import { sortTasks } from "@/lib/tasks";
 import type { Habit, HabitEntry, Project, Task } from "@/lib/types";
 import { AppHeader } from "@/components/AppHeader";
+import { DBUnavailable } from "@/components/DBUnavailable";
 import { HomeCard } from "@/components/HomeCard";
 import { useSynced } from "@/lib/use-synced";
 
@@ -20,17 +21,24 @@ export default function HomePage() {
   const [entries, setEntries] = useState<HabitEntry[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [dbFailed, setDbFailed] = useState(false);
 
   const dates = useMemo(() => rollingWindow(today, 1), [today]);
 
   useEffect(() => {
     void (async () => {
-      await navigator.storage?.persist?.();
-      await seedIfEmpty();
-      setHabits(await db.habits.toArray());
-      setEntries(await entriesForDates(dates));
-      setTasks(await db.tasks.toArray());
-      setProjects(await db.projects.toArray());
+      try {
+        await openDB();
+        await navigator.storage?.persist?.();
+        await seedIfEmpty();
+        setHabits(await db.habits.toArray());
+        setEntries(await entriesForDates(dates));
+        setTasks(await db.tasks.toArray());
+        setProjects(await db.projects.toArray());
+      } catch {
+        // A broken Dexie must not render as a day with nothing in it.
+        setDbFailed(true);
+      }
     })();
   }, [dates]);
 
@@ -39,10 +47,14 @@ export default function HomePage() {
   // the numbers on screen aren't stale the whole time the user has Home open.
   useSynced(() => {
     void (async () => {
-      setHabits(await db.habits.toArray());
-      setEntries(await entriesForDates(dates));
-      setTasks(await db.tasks.toArray());
-      setProjects(await db.projects.toArray());
+      try {
+        setHabits(await db.habits.toArray());
+        setEntries(await entriesForDates(dates));
+        setTasks(await db.tasks.toArray());
+        setProjects(await db.projects.toArray());
+      } catch {
+        setDbFailed(true);
+      }
     })();
   });
 
@@ -51,6 +63,15 @@ export default function HomePage() {
   const next = open[0];
   const nextProject =
     projects.find((p) => p.id === next?.projectId)?.name ?? null;
+
+  if (dbFailed) {
+    return (
+      <main className="w-full pb-6">
+        <AppHeader title={formatHeader(today)} />
+        <DBUnavailable />
+      </main>
+    );
+  }
 
   return (
     <main className="w-full pb-6">

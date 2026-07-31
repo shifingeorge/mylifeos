@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { db } from "@/lib/db/local";
+import { db, openDB } from "@/lib/db/local";
 import { lastSyncAt } from "@/lib/sync/engine";
 import { AppHeader } from "@/components/AppHeader";
+import { DBUnavailable } from "@/components/DBUnavailable";
 
 const ENV_LABEL =
   process.env.NEXT_PUBLIC_ENV_LABEL === "dev" ? "LIFE_OS · DEV" : "LIFE_OS";
@@ -12,15 +13,23 @@ const ENV_LABEL =
 export default function SettingsPage() {
   const [counts, setCounts] = useState({ projects: 0, tasks: 0, entries: 0 });
   const [synced, setSynced] = useState<string | undefined>();
+  const [dbFailed, setDbFailed] = useState(false);
 
   useEffect(() => {
     void (async () => {
-      setCounts({
-        projects: await db.projects.filter((p) => p.active).count(),
-        tasks: await db.tasks.count(),
-        entries: await db.habitEntries.count(),
-      });
-      setSynced(await lastSyncAt());
+      try {
+        await openDB();
+        setCounts({
+          projects: await db.projects.filter((p) => p.active).count(),
+          tasks: await db.tasks.count(),
+          entries: await db.habitEntries.count(),
+        });
+        setSynced(await lastSyncAt());
+      } catch {
+        // Zero ticks and zero tasks is the most alarming thing this screen
+        // can say, and it is the exact thing it says when Dexie is broken.
+        setDbFailed(true);
+      }
     })();
   }, []);
 
@@ -35,6 +44,23 @@ export default function SettingsPage() {
     await fetch("/api/auth", { method: "DELETE" });
     window.location.href = "/unlock";
   };
+
+  if (dbFailed) {
+    return (
+      <main className="w-full pb-6">
+        <AppHeader title="SETTINGS" />
+        <DBUnavailable />
+        <button
+          type="button"
+          onClick={lock}
+          className="mx-3 mt-6 h-11 w-[calc(100%-1.5rem)] text-[12px] tracking-[0.14em]"
+          style={{ border: "1px solid var(--rule)", color: "var(--type)" }}
+        >
+          LOCK
+        </button>
+      </main>
+    );
+  }
 
   return (
     <main className="w-full pb-6">

@@ -6,6 +6,7 @@ import { doneOnDate, sortTasks } from "@/lib/tasks";
 import {
   db,
   getMeta,
+  openDB,
   putTask,
   seedIfEmpty,
   setMeta,
@@ -13,6 +14,7 @@ import {
 import type { Project, Task } from "@/lib/types";
 import { AppHeader } from "@/components/AppHeader";
 import { CaptureSheet } from "@/components/CaptureSheet";
+import { DBUnavailable } from "@/components/DBUnavailable";
 import { SyncFooter } from "@/components/SyncFooter";
 import { TaskRow } from "@/components/TaskRow";
 import { lastSyncAt } from "@/lib/sync/engine";
@@ -46,6 +48,7 @@ export default function TasksPage() {
   const [capturing, setCapturing] = useState(false);
   const [undo, setUndo] = useState<Task | null>(null);
   const [lastSync, setLastSync] = useState<string | undefined>();
+  const [dbFailed, setDbFailed] = useState(false);
 
   const reload = useCallback(async () => {
     setTasks(await db.tasks.toArray());
@@ -55,16 +58,22 @@ export default function TasksPage() {
 
   useEffect(() => {
     void (async () => {
-      await seedIfEmpty();
-      setLastProject((await getMeta(LAST_PROJECT)) ?? null);
-      await reload();
+      try {
+        await openDB();
+        await seedIfEmpty();
+        setLastProject((await getMeta(LAST_PROJECT)) ?? null);
+        await reload();
+      } catch {
+        // NOTHING OPEN on a broken database reads as "my ledger is empty".
+        setDbFailed(true);
+      }
     })();
   }, [reload]);
 
   // The sync loop itself lives once, in SyncRunner (see app layout) — this
   // screen only listens for the "a sync just finished" event and refreshes
   // its own state from Dexie.
-  useSynced(() => void reload());
+  useSynced(() => void reload().catch(() => setDbFailed(true)));
 
   // The undo window closes on its own. Nothing is deleted either way — the
   // row is only marked done — so a missed undo costs one tap to reverse.
@@ -123,6 +132,15 @@ export default function TasksPage() {
 
   const projectName = (id: string | null) =>
     projects.find((p) => p.id === id)?.name ?? null;
+
+  if (dbFailed) {
+    return (
+      <main className="w-full pb-6">
+        <AppHeader title="TASK_LEDGER" />
+        <DBUnavailable />
+      </main>
+    );
+  }
 
   return (
     <main className="w-full pb-6">

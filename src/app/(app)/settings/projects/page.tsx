@@ -1,15 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { db, putProject, seedIfEmpty } from "@/lib/db/local";
+import { db, openDB, putProject, seedIfEmpty } from "@/lib/db/local";
 import type { Project, Task } from "@/lib/types";
 import { AppHeader } from "@/components/AppHeader";
+import { DBUnavailable } from "@/components/DBUnavailable";
 import { ListEditor, type ListItem } from "@/components/ListEditor";
 import { swapOrder } from "@/lib/reorder";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [dbFailed, setDbFailed] = useState(false);
 
   const reload = useCallback(async () => {
     setProjects((await db.projects.toArray()).sort((a, b) => a.sortOrder - b.sortOrder));
@@ -18,8 +20,15 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     void (async () => {
-      await seedIfEmpty();
-      await reload();
+      try {
+        await openDB();
+        await seedIfEmpty();
+        await reload();
+      } catch {
+        // An empty list here invites the user to re-add projects that are
+        // not actually gone, which would then sync as duplicates.
+        setDbFailed(true);
+      }
     })();
   }, [reload]);
 
@@ -88,6 +97,15 @@ export default function ProjectsPage() {
     await putProject({ ...b, updatedAt: now });
     await reload();
   };
+
+  if (dbFailed) {
+    return (
+      <main className="w-full pb-24">
+        <AppHeader title="PROJECTS" />
+        <DBUnavailable />
+      </main>
+    );
+  }
 
   return (
     <main className="w-full pb-24">

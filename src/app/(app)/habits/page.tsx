@@ -6,6 +6,7 @@ import { dayScore } from "@/lib/score";
 import {
   db,
   entriesForDates,
+  openDB,
   putEntry,
   seedIfEmpty,
 } from "@/lib/db/local";
@@ -13,6 +14,7 @@ import type { Category, CellState, Habit, HabitEntry } from "@/lib/types";
 import { HabitGrid } from "@/components/HabitGrid";
 import { AppHeader } from "@/components/AppHeader";
 import { DayHeaderScore } from "@/components/DayHeader";
+import { DBUnavailable } from "@/components/DBUnavailable";
 import { SyncFooter } from "@/components/SyncFooter";
 import { lastSyncAt } from "@/lib/sync/engine";
 import { useSynced } from "@/lib/use-synced";
@@ -23,25 +25,37 @@ export default function HabitsPage() {
   const [habits, setHabits] = useState<Habit[]>([]);
   const [entries, setEntries] = useState<HabitEntry[]>([]);
   const [lastSync, setLastSync] = useState<string | undefined>();
+  const [dbFailed, setDbFailed] = useState(false);
 
   const dates = useMemo(() => rollingWindow(today), [today]);
 
   useEffect(() => {
     void (async () => {
-      // Android can clear IndexedDB under storage pressure. Ask it not to.
-      await navigator.storage?.persist?.();
-      await seedIfEmpty();
-      setCategories(await db.categories.toArray());
-      setHabits(await db.habits.toArray());
-      setEntries(await entriesForDates(dates));
-      setLastSync(await lastSyncAt());
+      try {
+        await openDB();
+        // Android can clear IndexedDB under storage pressure. Ask it not to.
+        await navigator.storage?.persist?.();
+        await seedIfEmpty();
+        setCategories(await db.categories.toArray());
+        setHabits(await db.habits.toArray());
+        setEntries(await entriesForDates(dates));
+        setLastSync(await lastSyncAt());
+      } catch {
+        // An empty grid and a silently failing tick look identical to a
+        // month of data being gone. Say what actually happened instead.
+        setDbFailed(true);
+      }
     })();
   }, [dates]);
 
   useSynced(() => {
     void (async () => {
-      setEntries(await entriesForDates(dates));
-      setLastSync(await lastSyncAt());
+      try {
+        setEntries(await entriesForDates(dates));
+        setLastSync(await lastSyncAt());
+      } catch {
+        setDbFailed(true);
+      }
     })();
   });
 
@@ -67,6 +81,15 @@ export default function HabitsPage() {
     },
     [],
   );
+
+  if (dbFailed) {
+    return (
+      <main className="w-full pb-6">
+        <AppHeader title="LIFE_OS" />
+        <DBUnavailable />
+      </main>
+    );
+  }
 
   return (
     <main className="w-full pb-6">
