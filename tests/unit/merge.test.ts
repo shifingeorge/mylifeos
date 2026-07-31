@@ -67,3 +67,55 @@ describe("mergeEntries", () => {
     expect(mergeEntries([], [])).toEqual([]);
   });
 });
+
+import { mergeRows, idKey } from "@/lib/sync/merge";
+
+interface Row {
+  id: string;
+  name: string;
+  updatedAt: string;
+}
+
+const r = (id: string, name: string, updatedAt: string): Row => ({
+  id,
+  name,
+  updatedAt,
+});
+
+describe("mergeRows", () => {
+  it("keeps the row with the later updatedAt", () => {
+    const local = [r("a", "OLD", "2026-07-28T10:00:00Z")];
+    const remote = [r("a", "NEW", "2026-07-28T11:00:00Z")];
+    expect(mergeRows(local, remote, idKey)[0].name).toBe("NEW");
+  });
+
+  it("keeps the local row when it is newer", () => {
+    const local = [r("a", "LOCAL", "2026-07-28T12:00:00Z")];
+    const remote = [r("a", "REMOTE", "2026-07-28T11:00:00Z")];
+    expect(mergeRows(local, remote, idKey)[0].name).toBe("LOCAL");
+  });
+
+  it("prefers remote on an exact tie — the server is authoritative", () => {
+    const t = "2026-07-28T10:00:00Z";
+    expect(
+      mergeRows([r("a", "LOCAL", t)], [r("a", "REMOTE", t)], idKey)[0].name,
+    ).toBe("REMOTE");
+  });
+
+  it("includes rows present on only one side", () => {
+    const local = [r("a", "A", "2026-07-28T10:00:00Z")];
+    const remote = [r("b", "B", "2026-07-28T10:00:00Z")];
+    expect(mergeRows(local, remote, idKey)).toHaveLength(2);
+  });
+
+  it("uses the supplied key, not object identity", () => {
+    const local = [r("a", "A", "2026-07-28T10:00:00Z")];
+    const remote = [r("a", "A2", "2026-07-28T11:00:00Z")];
+    // Keying on name instead of id makes these two distinct rows.
+    expect(mergeRows(local, remote, (row) => row.name)).toHaveLength(2);
+  });
+
+  it("is empty when both sides are empty", () => {
+    expect(mergeRows<Row>([], [], idKey)).toEqual([]);
+  });
+});
