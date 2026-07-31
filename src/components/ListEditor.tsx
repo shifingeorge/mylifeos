@@ -54,6 +54,10 @@ export function ListEditor({
           className="flex items-center gap-1 px-3"
           style={{ borderBottom: "1px solid var(--rule)" }}
         >
+          {/* min-w-0 + truncate lets the name give way first: the three
+              buttons below are pinned at a full 44x44 tap target each (the
+              global minimum, enforced elsewhere as 44 square — see
+              HabitCell/TaskRow), never shrunk to fit a narrow phone. */}
           <span className="min-w-0 flex-1 truncate text-[12px] tracking-[0.04em]">
             {item.name}
           </span>
@@ -62,7 +66,7 @@ export function ListEditor({
             aria-label={`Move ${item.name} up`}
             disabled={i === 0}
             onClick={() => onReorder(item.id, -1)}
-            className="h-11 w-8 text-[12px] disabled:opacity-25"
+            className="h-11 w-11 shrink-0 text-[12px] disabled:opacity-25"
             style={{ color: "var(--type-muted)" }}
           >
             ↑
@@ -72,7 +76,7 @@ export function ListEditor({
             aria-label={`Move ${item.name} down`}
             disabled={i === items.length - 1}
             onClick={() => onReorder(item.id, 1)}
-            className="h-11 w-8 text-[12px] disabled:opacity-25"
+            className="h-11 w-11 shrink-0 text-[12px] disabled:opacity-25"
             style={{ color: "var(--type-muted)" }}
           >
             ↓
@@ -81,7 +85,7 @@ export function ListEditor({
             type="button"
             aria-label={`Edit ${item.name}`}
             onClick={() => openEditor(item)}
-            className="h-11 w-8 text-[12px]"
+            className="h-11 w-11 shrink-0 text-[12px]"
             style={{ color: "var(--type-muted)" }}
           >
             ›

@@ -5,6 +5,7 @@ import { db, putProject, seedIfEmpty } from "@/lib/db/local";
 import type { Project, Task } from "@/lib/types";
 import { AppHeader } from "@/components/AppHeader";
 import { ListEditor, type ListItem } from "@/components/ListEditor";
+import { swapOrder } from "@/lib/reorder";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -70,28 +71,21 @@ export default function ProjectsPage() {
   };
 
   /**
-   * Swaps sortOrder with the neighbour in the *active* list. This is safe
-   * even after adds/archives punch gaps in the numbering: `active[i]` and
-   * `active[j]` are always two distinct rows with two distinct existing
-   * sortOrder values, and the swap only ever exchanges those two real
-   * values between each other — it never copies a value from a third row
-   * or computes one from a position index. So two active projects can
-   * never end up sharing a sortOrder through this path, regardless of how
-   * sparse the numbering has become. Archived rows keep their old
-   * sortOrder untouched, which is fine because they're filtered out of
-   * `active` and never re-enter the comparison.
+   * Swaps sortOrder with the neighbour in the *active* list, via the pure
+   * `swapOrder` (see src/lib/reorder.ts for why this can't produce a
+   * collision even after adds/archives punch gaps in the numbering).
+   * Archived rows keep their old sortOrder untouched, which is fine because
+   * they're filtered out of `active` and never re-enter the comparison.
    */
   const onReorder = async (id: string, direction: -1 | 1) => {
     const active = projects.filter((p) => p.active);
-    const i = active.findIndex((p) => p.id === id);
-    const j = i + direction;
-    if (i < 0 || j < 0 || j >= active.length) return;
+    const swapped = swapOrder(active, id, direction);
+    if (!swapped) return;
 
-    const a = active[i];
-    const b = active[j];
     const now = stamp();
-    await putProject({ ...a, sortOrder: b.sortOrder, updatedAt: now });
-    await putProject({ ...b, sortOrder: a.sortOrder, updatedAt: now });
+    const [a, b] = swapped;
+    await putProject({ ...a, updatedAt: now });
+    await putProject({ ...b, updatedAt: now });
     await reload();
   };
 

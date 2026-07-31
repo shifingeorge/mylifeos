@@ -70,6 +70,16 @@ export async function POST(req: Request) {
  */
 export async function DELETE() {
   const res = NextResponse.json({ ok: true });
-  res.cookies.set(COOKIE_NAME, "", { maxAge: 0, path: "/" });
+  // A cookie's identity is name + domain + path, so maxAge/path alone would
+  // delete it regardless — but mirroring POST's full attribute set means
+  // nobody has to re-derive that from the cookie spec to trust that this
+  // actually clears the same cookie POST set, not a same-named lookalike.
+  res.cookies.set(COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+  });
   return res;
 }
