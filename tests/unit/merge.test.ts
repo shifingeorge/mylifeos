@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeEntries } from "@/lib/sync/merge";
+import { entryKey, mergeRows } from "@/lib/sync/merge";
 import type { HabitEntry, CellState } from "@/lib/types";
 
 const e = (
@@ -15,7 +15,14 @@ const e = (
   updatedAt,
 });
 
-describe("mergeEntries", () => {
+/**
+ * Entries are the table with a compound identity, so they get their own pass
+ * over `mergeRows` — everything else is keyed by a plain id.
+ */
+const mergeEntries = (local: HabitEntry[], remote: HabitEntry[]) =>
+  mergeRows(local, remote, entryKey);
+
+describe("mergeRows with entryKey", () => {
   it("keeps the row with the later updatedAt", () => {
     const local = [e("a", "2026-07-28", "done", "2026-07-28T10:00:00Z")];
     const remote = [e("a", "2026-07-28", "missed", "2026-07-28T11:00:00Z")];
@@ -68,7 +75,7 @@ describe("mergeEntries", () => {
   });
 });
 
-import { mergeRows, idKey } from "@/lib/sync/merge";
+import { idKey } from "@/lib/sync/merge";
 
 interface Row {
   id: string;
@@ -119,10 +126,11 @@ describe("mergeRows", () => {
     expect(mergeRows<Row>([], [], idKey)).toEqual([]);
   });
 
-  // The sync engine leans on this: it uses object identity to decide which
-  // rows are safe to overwrite with `dirty: 0`. A row that merely looks the
-  // same as the local row is not good enough — it must be the SAME object,
-  // or a mid-flight edit could get silently marked as synced.
+  // Not load-bearing for the engine any more — it compares `updatedAt`
+  // against the snapshot it pushed rather than object identity (see
+  // `hasUnsentEdit` in engine.ts, and the round trip in engine.test.ts).
+  // Kept because a merge that copied rows for no reason would be a
+  // regression worth noticing.
   it("returns the same object reference when the local row wins on a later updatedAt", () => {
     const local = [r("a", "LOCAL", "2026-07-28T12:00:00Z")];
     const remote = [r("a", "REMOTE", "2026-07-28T11:00:00Z")];

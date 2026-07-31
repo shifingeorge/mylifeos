@@ -30,10 +30,3 @@ export function mergeRows<T extends { updatedAt: string }>(
 export const entryKey = (e: HabitEntry) => `${e.habitId}|${e.date}`;
 
 export const idKey = <T extends { id: string }>(row: T) => row.id;
-
-export function mergeEntries(
-  local: HabitEntry[],
-  remote: HabitEntry[],
-): HabitEntry[] {
-  return mergeRows(local, remote, entryKey);
-}
