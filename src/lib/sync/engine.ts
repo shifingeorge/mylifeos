@@ -3,11 +3,13 @@ import {
   dirtyCategories,
   dirtyEntries,
   dirtyHabits,
+  dirtyProjects,
+  dirtyTasks,
   getMeta,
   setMeta,
 } from "../db/local";
 import { entryKey, idKey, mergeRows } from "./merge";
-import type { Category, Habit, HabitEntry } from "../types";
+import type { Category, Habit, HabitEntry, Project, Task } from "../types";
 
 const CURSOR = "syncCursor";
 const LAST_SYNC = "lastSyncAt";
@@ -21,10 +23,12 @@ function strip<T extends { dirty?: 1 | 0 }>(rows: T[]): Omit<T, "dirty">[] {
 }
 
 export async function sync(): Promise<{ pushed: number; pulled: number }> {
-  const [cats, habs, ents] = await Promise.all([
+  const [cats, habs, ents, projs, tsks] = await Promise.all([
     dirtyCategories(),
     dirtyHabits(),
     dirtyEntries(),
+    dirtyProjects(),
+    dirtyTasks(),
   ]);
   const since = (await getMeta(CURSOR)) ?? null;
 
@@ -36,6 +40,8 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
       categories: strip(cats),
       habits: strip(habs),
       entries: strip(ents),
+      projects: strip(projs),
+      tasks: strip(tsks),
     }),
   });
 
@@ -46,14 +52,13 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
     categories: Category[];
     habits: Habit[];
     entries: HabitEntry[];
+    projects: Project[];
+    tasks: Task[];
   };
 
   await db.transaction(
     "rw",
-    db.categories,
-    db.habits,
-    db.habitEntries,
-    db.meta,
+    [db.categories, db.habits, db.habitEntries, db.projects, db.tasks, db.meta],
     async () => {
       if (pulled.categories.length > 0) {
         const local = await db.categories.toArray();
@@ -85,6 +90,24 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
         }
       }
 
+      if (pulled.projects.length > 0) {
+        const local = await db.projects.toArray();
+        const before = new Map(local.map((r) => [r.id, r]));
+        for (const row of mergeRows(local, pulled.projects, idKey)) {
+          if (before.get(row.id) === row) continue;
+          await db.projects.put({ ...row, dirty: 0 });
+        }
+      }
+
+      if (pulled.tasks.length > 0) {
+        const local = await db.tasks.toArray();
+        const before = new Map(local.map((r) => [r.id, r]));
+        for (const row of mergeRows(local, pulled.tasks, idKey)) {
+          if (before.get(row.id) === row) continue;
+          await db.tasks.put({ ...row, dirty: 0 });
+        }
+      }
+
       // Anything just pushed is now on the server — but only if it is still
       // the exact row we pushed. If the user edited it while the fetch was
       // in flight, `updatedAt` has moved: that edit was never sent, so
@@ -108,6 +131,18 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
           await db.habitEntries.update([e.habitId, e.date], { dirty: 0 });
         }
       }
+      for (const p of projs) {
+        const current = await db.projects.get(p.id);
+        if (current?.updatedAt === p.updatedAt) {
+          await db.projects.update(p.id, { dirty: 0 });
+        }
+      }
+      for (const t of tsks) {
+        const current = await db.tasks.get(t.id);
+        if (current?.updatedAt === t.updatedAt) {
+          await db.tasks.update(t.id, { dirty: 0 });
+        }
+      }
 
       await setMeta(CURSOR, pulled.serverTime);
       await setMeta(LAST_SYNC, pulled.serverTime);
@@ -115,9 +150,13 @@ export async function sync(): Promise<{ pushed: number; pulled: number }> {
   );
 
   return {
-    pushed: cats.length + habs.length + ents.length,
+    pushed: cats.length + habs.length + ents.length + projs.length + tsks.length,
     pulled:
-      pulled.categories.length + pulled.habits.length + pulled.entries.length,
+      pulled.categories.length +
+      pulled.habits.length +
+      pulled.entries.length +
+      pulled.projects.length +
+      pulled.tasks.length,
   };
 }
 
