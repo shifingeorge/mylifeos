@@ -1,0 +1,85 @@
+import { test, expect, type Page } from "@playwright/test";
+
+/**
+ * The task-side twin of spine.spec.ts: capture, complete, undo, and — the
+ * whole point of an offline-first ledger — capture with no connection at
+ * all and have it still be there after a reload.
+ *
+ * The PIN comes from the environment so the real one is never in the repo.
+ * Locally it matches the throwaway PIN in .env.
+ */
+const PIN = process.env.E2E_PIN ?? "123456";
+
+async function unlock(page: Page) {
+  await page.goto("/unlock");
+  for (const digit of PIN) {
+    await page.getByRole("button", { name: digit, exact: true }).click();
+  }
+  // The unlock page itself redirects to /habits on success (src/app/unlock/page.tsx),
+  // even though / (Home) is what you land on for a plain visit — so waiting
+  // on /habits here is right, not a leftover from before Home existed.
+  await page.waitForURL("**/habits");
+}
+
+async function capture(page: Page, title: string) {
+  await page.getByRole("button", { name: "New task" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Task title").fill(title);
+  // Scoped to the dialog: SAVE also appears in the project-settings sheet,
+  // so an unscoped locator is ambiguous the moment both dialogs exist in the DOM.
+  await dialog.getByRole("button", { name: "SAVE" }).click();
+}
+
+test("captures, completes and undoes a task", async ({ page }) => {
+  await unlock(page);
+  await page.goto("/tasks");
+
+  await capture(page, "buy filters");
+  const row = page.getByRole("button", { name: /BUY FILTERS/ });
+  await expect(row).toBeVisible();
+  // Capture uppercases, because the whole ledger is uppercase.
+  await expect(page.getByText("BUY FILTERS")).toBeVisible();
+
+  // Survives a reload: the write went to IndexedDB, not just React state.
+  await page.reload();
+  await expect(page.getByRole("button", { name: /BUY FILTERS/ })).toBeVisible();
+
+  // Completing collapses it out of the open list, with an undo.
+  await page.getByRole("button", { name: /BUY FILTERS/ }).click();
+  await expect(page.getByRole("status")).toContainText("DONE");
+  await expect(page.getByText("DONE TODAY 1")).toBeVisible();
+
+  await page.getByRole("button", { name: "UNDO" }).click();
+  await expect(page.getByRole("button", { name: /BUY FILTERS/ })).toBeVisible();
+});
+
+test("captures with no connection and keeps it", async ({ page, context }) => {
+  await unlock(page);
+  await page.goto("/tasks");
+
+  await context.setOffline(true);
+  await capture(page, "offline task");
+  // Visible while STILL offline — if the save round-tripped through the
+  // network first, this would never appear and the test would fail here,
+  // not just later after reconnecting.
+  await expect(page.getByText("OFFLINE TASK")).toBeVisible();
+
+  // Reload while still offline: the row has to come from IndexedDB, not
+  // from React state that a network round-trip happened to populate.
+  await page.reload();
+  await expect(page.getByText("OFFLINE TASK")).toBeVisible();
+
+  await context.setOffline(false);
+  await page.reload();
+  await expect(page.getByText("OFFLINE TASK")).toBeVisible();
+});
+
+test("guards the tasks screen behind the PIN", async ({ page }) => {
+  await page.goto("/tasks");
+  await expect(page).toHaveURL(/\/unlock/);
+});
+
+test("guards settings behind the PIN", async ({ page }) => {
+  await page.goto("/settings/projects");
+  await expect(page).toHaveURL(/\/unlock/);
+});
