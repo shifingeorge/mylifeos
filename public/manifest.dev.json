@@ -1,7 +1,7 @@
 {
   "name": "LIFE_OS · DEV",
   "short_name": "LIFE_OS DEV",
-  "start_url": "/habits",
+  "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",

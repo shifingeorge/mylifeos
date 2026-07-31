@@ -4,10 +4,14 @@ import { test, expect, type Page } from "@playwright/test";
  * One test covering the spine of the app: unlock, tick, persist, work
  * offline, come back.
  *
- * The PIN comes from the environment so the real one is never in the repo.
- * Locally it matches the throwaway PIN in .env.
+ * The PIN never comes from the developer's `.env`: tests/e2e/global-setup.ts
+ * mints a throwaway PIN and hash for each run and starts the dev server with
+ * them, so E2E_PIN (default 123456) is the only PIN this suite ever knows.
  */
 const PIN = process.env.E2E_PIN ?? "123456";
+
+/** Unlock lands on Home; the grid is one tab away. */
+const atHome = (url: URL) => url.pathname === "/";
 
 /** The rolling window is anchored to today, so dates must be computed. */
 function istDate(offsetDays = 0): string {
@@ -23,6 +27,15 @@ async function unlock(page: Page) {
   for (const digit of PIN) {
     await page.getByRole("button", { name: digit, exact: true }).click();
   }
+  await page.waitForURL(atHome);
+}
+
+/** Unlock, then walk to the grid the way the tab bar does. */
+async function unlockToGrid(page: Page) {
+  await unlock(page);
+  // exact: Home's HABITS card is also a link to /habits, and its accessible
+  // name starts with HABITS too.
+  await page.getByRole("link", { name: "HABITS", exact: true }).click();
   await page.waitForURL("**/habits");
 }
 
@@ -47,7 +60,7 @@ test("unlock, tick, persist, go offline, tick, come back online", async ({
   const today = istDate(0);
   const yesterday = istDate(1);
 
-  await unlock(page);
+  await unlockToGrid(page);
 
   // Tick today.
   const read = cell(page, "READ BOOK", today);
@@ -86,7 +99,7 @@ test("unlock, tick, persist, go offline, tick, come back online", async ({
 });
 
 test("never renders a future column", async ({ page }) => {
-  await unlock(page);
+  await unlockToGrid(page);
   const tomorrow = istDate(-1);
   await expect(page.getByRole("button", { name: new RegExp(tomorrow) }))
     .toHaveCount(0);

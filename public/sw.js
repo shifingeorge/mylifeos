@@ -16,7 +16,14 @@
  * worse than one that is a day behind.
  */
 
-const VERSION = "v1";
+// Bumped to v2 with the move of every entry point from /habits to Home:
+// an already-installed client holds a `lifeos-shell-v1` whose only precached
+// navigation is /habits, and the offline fallback below now looks for "/".
+// Without a new cache name that client would keep answering a cold offline
+// launch from the old shell — or from nothing at all — until it happened to
+// visit Home while online. The bump drops both v1 caches on activate and
+// re-warms the shell at the new URL.
+const VERSION = "v2";
 const SHELL = `lifeos-shell-${VERSION}`;
 const ASSETS = `lifeos-assets-${VERSION}`;
 const KEEP = new Set([SHELL, ASSETS]);
@@ -24,8 +31,8 @@ const KEEP = new Set([SHELL, ASSETS]);
 self.addEventListener("install", (event) => {
   // Warm the shell so a cold offline launch has something to render.
   event.waitUntil(
-    caches.open(SHELL).then((cache) => cache.addAll(["/habits"])).catch(() => {
-      // First install may be offline or /habits may redirect to /unlock.
+    caches.open(SHELL).then((cache) => cache.addAll(["/"])).catch(() => {
+      // First install may be offline or "/" may redirect to /unlock.
       // Not fatal: the fetch handler fills the cache on the first real visit.
     }),
   );
@@ -91,7 +98,7 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(async () => {
           const cached =
-            (await caches.match(request)) ?? (await caches.match("/habits"));
+            (await caches.match(request)) ?? (await caches.match("/"));
           if (cached) return cached;
           return new Response("Offline", {
             status: 503,

@@ -21,7 +21,10 @@ export default function UnlockPage() {
       });
 
       if (res.status === 204) {
-        router.replace("/habits");
+        // Home, not /habits — the same place a plain visit lands, and the
+        // same place the manifest's start_url and the service worker's
+        // offline shell point at. Four entry points, one destination.
+        router.replace("/");
         return;
       }
 

@@ -5,8 +5,9 @@ import { test, expect, type Page } from "@playwright/test";
  * whole point of an offline-first ledger — capture with no connection at
  * all and have it still be there after a reload.
  *
- * The PIN comes from the environment so the real one is never in the repo.
- * Locally it matches the throwaway PIN in .env.
+ * The PIN never comes from the developer's `.env`: tests/e2e/global-setup.ts
+ * mints a throwaway PIN and hash for each run and starts the dev server with
+ * them, so E2E_PIN (default 123456) is the only PIN this suite ever knows.
  */
 const PIN = process.env.E2E_PIN ?? "123456";
 
@@ -15,10 +16,10 @@ async function unlock(page: Page) {
   for (const digit of PIN) {
     await page.getByRole("button", { name: digit, exact: true }).click();
   }
-  // The unlock page itself redirects to /habits on success (src/app/unlock/page.tsx),
-  // even though / (Home) is what you land on for a plain visit — so waiting
-  // on /habits here is right, not a leftover from before Home existed.
-  await page.waitForURL("**/habits");
+  // Home. Unlock redirects to the same landing screen a plain visit gets
+  // (src/app/unlock/page.tsx) — "**/" would also match /habits, so match the
+  // path exactly.
+  await page.waitForURL((url) => url.pathname === "/");
 }
 
 async function capture(page: Page, title: string) {
